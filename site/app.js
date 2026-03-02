@@ -31,15 +31,49 @@ async function loadModelCard() {
         }
         modelCard = await response.json();
         
-        // Update Model Card UI
-        document.getElementById('metricMae').textContent = modelCard.metrics.test.mae.toFixed(2);
-        document.getElementById('metricRmse').textContent = modelCard.metrics.test.rmse.toFixed(2);
-        document.getElementById('metricTopK').textContent = (modelCard.metrics.test.top_k_overlap * 100).toFixed(1) + '%';
-        document.getElementById('trainYears').textContent = modelCard.train_test_split.train_years;
-        document.getElementById('testYears').textContent = modelCard.train_test_split.test_years;
-        document.getElementById('numNeighbourhoods').textContent = modelCard.data_ranges.neighbourhoods;
-        document.getElementById('dataFreshness').textContent = `Built from snapshots dated: ${modelCard.data_freshness}`;
-        document.getElementById('lastUpdated').textContent = new Date(modelCard.last_updated).toLocaleString();
+        // Update Model Card UI with safe property access
+        const maeEl = document.getElementById('metricMae');
+        const rmseEl = document.getElementById('metricRmse');
+        const topKEl = document.getElementById('metricTopK');
+        const trainYearsEl = document.getElementById('trainYears');
+        const testYearsEl = document.getElementById('testYears');
+        const numNeighEl = document.getElementById('numNeighbourhoods');
+        const freshnessEl = document.getElementById('dataFreshness');
+        const updatedEl = document.getElementById('lastUpdated');
+        
+        if (maeEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.mae !== undefined) {
+            maeEl.textContent = modelCard.metrics.test.mae.toFixed(2);
+        }
+        
+        if (rmseEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.rmse !== undefined) {
+            rmseEl.textContent = modelCard.metrics.test.rmse.toFixed(2);
+        }
+        
+        if (topKEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.top_k_overlap !== undefined) {
+            topKEl.textContent = (modelCard.metrics.test.top_k_overlap * 100).toFixed(1) + '%';
+        }
+        
+        if (trainYearsEl && modelCard.train_test_split && modelCard.train_test_split.train_years) {
+            trainYearsEl.textContent = modelCard.train_test_split.train_years;
+        }
+        
+        if (testYearsEl && modelCard.train_test_split && modelCard.train_test_split.test_years) {
+            testYearsEl.textContent = modelCard.train_test_split.test_years;
+        }
+        
+        if (numNeighEl && modelCard.data_ranges && modelCard.data_ranges.neighbourhoods !== undefined) {
+            numNeighEl.textContent = modelCard.data_ranges.neighbourhoods;
+        }
+        
+        if (freshnessEl) {
+            freshnessEl.textContent = modelCard.data_freshness ? 
+                `Built from snapshots dated: ${modelCard.data_freshness}` : 
+                'City of Edmonton Open Data';
+        }
+        
+        if (updatedEl && modelCard.last_updated) {
+            updatedEl.textContent = new Date(modelCard.last_updated).toLocaleString();
+        }
     } catch (error) {
         console.error('Error loading model card:', error);
     }
@@ -49,7 +83,10 @@ async function loadModelCard() {
 async function loadData() {
     try {
         // Show loading state
-        document.getElementById('topKContent').innerHTML = '<div class="loading">Loading predictions...</div>';
+        const topKContent = document.getElementById('topKContent');
+        if (topKContent) {
+            topKContent.innerHTML = '<div class="loading">Loading predictions...</div>';
+        }
         
         // Load predictions
         const predictionsResponse = await fetch('assets/predictions.geojson?v=' + Date.now());
@@ -59,13 +96,15 @@ async function loadData() {
         const predictions = await predictionsResponse.json();
         
         // Organize by year
-        predictions.features.forEach(feature => {
-            const year = feature.properties.year;
-            if (!predictionsData[year]) {
-                predictionsData[year] = [];
-            }
-            predictionsData[year].push(feature);
-        });
+        if (predictions.features) {
+            predictions.features.forEach(feature => {
+                const year = feature.properties.year;
+                if (!predictionsData[year]) {
+                    predictionsData[year] = [];
+                }
+                predictionsData[year].push(feature);
+            });
+        }
         
         // Load timeseries
         const timeseriesResponse = await fetch('assets/timeseries.csv?v=' + Date.now());
@@ -99,9 +138,8 @@ async function loadData() {
         // Populate year selector
         const years = Object.keys(predictionsData).sort((a, b) => b - a);
         const yearSelect = document.getElementById('yearSelect');
-        yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
-        
-        if (years.length > 0) {
+        if (yearSelect && years.length > 0) {
+            yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
             currentYear = years[0];
             yearSelect.value = currentYear;
             updateMap();
@@ -110,7 +148,10 @@ async function loadData() {
         
     } catch (error) {
         console.error('Error loading data:', error);
-        document.getElementById('topKContent').innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
+        const topKContent = document.getElementById('topKContent');
+        if (topKContent) {
+            topKContent.innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
+        }
     }
 }
 
@@ -452,93 +493,139 @@ function showChart(neighbourhoodName) {
     });
 }
 
-// Event listeners
-document.getElementById('yearSelect').addEventListener('change', (e) => {
-    currentYear = e.target.value;
-    updateMap();
-    updateTopK();
-});
-
-document.getElementById('viewMode').addEventListener('change', (e) => {
-    currentViewMode = e.target.value;
-    updateMap();
-});
-
-document.getElementById('growthTarget').addEventListener('change', (e) => {
-    currentGrowthTarget = e.target.value;
-    // Would need to load different predictions for different targets
-    updateMap();
-});
-
-document.getElementById('zoningFilter').addEventListener('change', () => {
-    updateTopK();
-});
-
-document.getElementById('closePanel').addEventListener('click', () => {
-    document.getElementById('infoPanel').classList.add('hidden');
-});
-
-document.getElementById('refreshBtn').addEventListener('click', () => {
-    loadData();
-    loadModelCard();
-});
-
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active from siblings
-        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Update content based on tab
-        if (btn.parentElement.classList.contains('top-k-tabs')) {
+// Setup event listeners (called after DOM is ready)
+function setupEventListeners() {
+    const yearSelect = document.getElementById('yearSelect');
+    if (yearSelect) {
+        yearSelect.addEventListener('change', (e) => {
+            currentYear = e.target.value;
+            updateMap();
             updateTopK();
-        } else if (btn.parentElement.classList.contains('eval-tabs')) {
-            updateEvaluation(btn.dataset.tab);
-        }
-    });
-});
-
-// Scenario mode
-document.getElementById('scenarioMode').addEventListener('change', (e) => {
-    const sliders = document.getElementById('scenarioSliders');
-    if (e.target.checked) {
-        sliders.classList.remove('hidden');
-    } else {
-        sliders.classList.add('hidden');
-        scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-        updateMap();
+        });
     }
-});
 
-document.getElementById('permitsSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.permits = parseFloat(e.target.value);
-    document.getElementById('permitsAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const viewMode = document.getElementById('viewMode');
+    if (viewMode) {
+        viewMode.addEventListener('change', (e) => {
+            currentViewMode = e.target.value;
+            updateMap();
+        });
+    }
 
-document.getElementById('constructionSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.construction = parseFloat(e.target.value);
-    document.getElementById('constructionAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const growthTarget = document.getElementById('growthTarget');
+    if (growthTarget) {
+        growthTarget.addEventListener('change', (e) => {
+            currentGrowthTarget = e.target.value;
+            updateMap();
+        });
+    }
 
-document.getElementById('zoningSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.zoning = parseFloat(e.target.value);
-    document.getElementById('zoningAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const zoningFilter = document.getElementById('zoningFilter');
+    if (zoningFilter) {
+        zoningFilter.addEventListener('change', () => {
+            updateTopK();
+        });
+    }
 
-document.getElementById('resetScenario').addEventListener('click', () => {
-    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-    document.getElementById('permitsSlider').value = 0;
-    document.getElementById('constructionSlider').value = 0;
-    document.getElementById('zoningSlider').value = 0;
-    document.getElementById('permitsAdj').textContent = '0%';
-    document.getElementById('constructionAdj').textContent = '0%';
-    document.getElementById('zoningAdj').textContent = '0%';
-    updateMap();
-});
+    const closePanel = document.getElementById('closePanel');
+    if (closePanel) {
+        closePanel.addEventListener('click', () => {
+            const infoPanel = document.getElementById('infoPanel');
+            if (infoPanel) infoPanel.classList.add('hidden');
+        });
+    }
+
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            loadData();
+            loadModelCard();
+        });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active from siblings
+            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Update content based on tab
+            if (btn.parentElement.classList.contains('top-k-tabs')) {
+                updateTopK();
+            } else if (btn.parentElement.classList.contains('eval-tabs')) {
+                updateEvaluation(btn.dataset.tab);
+            }
+        });
+    });
+
+    // Scenario mode
+    const scenarioMode = document.getElementById('scenarioMode');
+    if (scenarioMode) {
+        scenarioMode.addEventListener('change', (e) => {
+            const sliders = document.getElementById('scenarioSliders');
+            if (sliders) {
+                if (e.target.checked) {
+                    sliders.classList.remove('hidden');
+                } else {
+                    sliders.classList.add('hidden');
+                    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+                    updateMap();
+                }
+            }
+        });
+    }
+
+    const permitsSlider = document.getElementById('permitsSlider');
+    if (permitsSlider) {
+        permitsSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.permits = parseFloat(e.target.value);
+            const adjEl = document.getElementById('permitsAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const constructionSlider = document.getElementById('constructionSlider');
+    if (constructionSlider) {
+        constructionSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.construction = parseFloat(e.target.value);
+            const adjEl = document.getElementById('constructionAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const zoningSlider = document.getElementById('zoningSlider');
+    if (zoningSlider) {
+        zoningSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.zoning = parseFloat(e.target.value);
+            const adjEl = document.getElementById('zoningAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const resetScenario = document.getElementById('resetScenario');
+    if (resetScenario) {
+        resetScenario.addEventListener('click', () => {
+            scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+            const permitsSlider = document.getElementById('permitsSlider');
+            const constructionSlider = document.getElementById('constructionSlider');
+            const zoningSlider = document.getElementById('zoningSlider');
+            const permitsAdj = document.getElementById('permitsAdj');
+            const constructionAdj = document.getElementById('constructionAdj');
+            const zoningAdj = document.getElementById('zoningAdj');
+            if (permitsSlider) permitsSlider.value = 0;
+            if (constructionSlider) constructionSlider.value = 0;
+            if (zoningSlider) zoningSlider.value = 0;
+            if (permitsAdj) permitsAdj.textContent = '0%';
+            if (constructionAdj) constructionAdj.textContent = '0%';
+            if (zoningAdj) zoningAdj.textContent = '0%';
+            updateMap();
+        });
+    }
+}
 
 // Update evaluation section
 function updateEvaluation(tab) {
@@ -573,12 +660,14 @@ function updateEvaluation(tab) {
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
+        setupEventListeners();
         initMap();
         loadModelCard();
         loadData();
     });
 } else {
     // DOM already loaded
+    setupEventListeners();
     initMap();
     loadModelCard();
     loadData();
