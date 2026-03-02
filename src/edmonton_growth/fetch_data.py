@@ -216,12 +216,9 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
     if limit:
         params["$limit"] = limit
     else:
-        # Default to 50,000 for SODA2 (max allowed), or use pagination
-        # For SODA3, we'll use pagination with smaller chunks
-        if api_version == "soda2":
-            params["$limit"] = 50000
-        else:
-            params["$limit"] = 1000  # Start with default, use pagination if needed
+        # For SODA3, use 50000 to reduce pagination requests
+        # For SODA2, also use 50000 (max allowed)
+        params["$limit"] = 50000
     
     if where_clause:
         params["$where"] = where_clause
@@ -251,94 +248,110 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
             if '/' in range_header:
                 total_size = int(range_header.split('/')[-1])
         
-        # Check response headers for total size
-        fetched_count = None
-        if format_type == "csv":
-            # Count rows in CSV response
-            from io import StringIO
-            temp_df = pd.read_csv(StringIO(response.text))
-            fetched_count = len(temp_df)
-        elif isinstance(data, list):
-            fetched_count = len(data)
-        elif isinstance(data, dict):
-            if "data" in data:
-                fetched_count = len(data["data"])
-            elif "features" in data:
-                fetched_count = len(data["features"])
-        
-        # Check if we need pagination
-        if total_size and total_size > params["$limit"]:
-            logger.warning(f"Dataset has {total_size} rows but limit is {params['$limit']}")
-            if use_pagination:
-                logger.info("Using pagination to fetch all records...")
-                return fetch_with_pagination(
-                    resource_id, output_path, api_version, base_url,
-                    format_type, where_clause, select_cols, page_size=params["$limit"]
-                )
-            else:
-                logger.warning("Pagination disabled. Only partial data will be fetched.")
-        elif fetched_count and fetched_count == params["$limit"] and use_pagination:
-            # We got exactly the limit, might be more data
-            logger.info("Fetched exactly the limit. Using pagination to check for more records...")
-            return fetch_with_pagination(
-                resource_id, output_path, api_version, base_url,
-                format_type, where_clause, select_cols, page_size=params["$limit"]
-            )
-        
         # Handle CSV directly (most efficient)
         if format_type == "csv":
             with open(output_path, 'wb') as f:
                 f.write(response.content)
-            # Verify it's valid CSV
-            df = pd.read_csv(output_path, nrows=1)
-            logger.info(f"Saved CSV with {len(pd.read_csv(output_path))} records to {output_path}")
+            # Verify it's valid CSV and count rows
+            df = pd.read_csv(output_path)
+            fetched_count = len(df)
+            logger.info(f"Saved CSV with {fetched_count} records to {output_path}")
+            
+            # Check if we need pagination (if total_size indicates more data, or we got exactly the limit)
+            if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
+                logger.info("Dataset may have more records, using pagination...")
+                return fetch_with_pagination(
+                    resource_id, output_path, api_version, base_url,
+                    format_type, where_clause, select_cols, page_size=params["$limit"]
+                )
             return True
         
         # Handle GeoJSON directly
         if format_type == "geojson":
             with open(output_path, 'wb') as f:
                 f.write(response.content)
-            # Verify it's valid GeoJSON
+            # Verify it's valid GeoJSON and count features
             gdf = gpd.read_file(output_path)
-            logger.info(f"Saved GeoJSON with {len(gdf)} records to {output_path}")
+            fetched_count = len(gdf)
+            logger.info(f"Saved GeoJSON with {fetched_count} records to {output_path}")
+            
+            # Check if we need pagination
+            if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
+                logger.info("Dataset may have more records, using pagination...")
+                return fetch_with_pagination(
+                    resource_id, output_path, api_version, base_url,
+                    format_type, where_clause, select_cols, page_size=params["$limit"]
+                )
             return True
         
         # Handle JSON
         data = response.json()
+        fetched_count = None
         
         if api_version == "soda2":
             # SODA2 returns list of records directly
             if isinstance(data, list) and len(data) > 0:
+                fetched_count = len(data)
                 df = pd.DataFrame(data)
             elif isinstance(data, dict) and "features" in data:
                 # GeoJSON FeatureCollection
+                fetched_count = len(data["features"])
                 gdf = gpd.GeoDataFrame.from_features(data["features"], crs="EPSG:4326")
                 gdf.to_file(output_path, driver="GeoJSON" if output_path.suffix == ".geojson" else "ESRI Shapefile")
                 logger.info(f"Saved {len(gdf)} geospatial records to {output_path}")
+                
+                # Check pagination
+                if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
+                    logger.info("Dataset may have more records, using pagination...")
+                    return fetch_with_pagination(
+                        resource_id, output_path, api_version, base_url,
+                        format_type, where_clause, select_cols, page_size=params["$limit"]
+                    )
                 return True
             else:
                 df = pd.DataFrame(data) if data else pd.DataFrame()
+                fetched_count = len(df) if len(df) > 0 else 0
         else:
             # SODA3 can return different formats
             # Format 1: {"data": [[...], ...], "meta": {...}}
             if "data" in data and len(data["data"]) > 0:
                 columns = [col["name"] for col in data["meta"]["view"]["columns"]]
+                fetched_count = len(data["data"])
                 df = pd.DataFrame(data["data"], columns=columns)
             # Format 2: Direct list of records (like SODA2)
             elif isinstance(data, list) and len(data) > 0:
+                fetched_count = len(data)
                 df = pd.DataFrame(data)
             # Format 3: GeoJSON FeatureCollection
             elif isinstance(data, dict) and "features" in data:
+                fetched_count = len(data["features"])
                 gdf = gpd.GeoDataFrame.from_features(data["features"], crs="EPSG:4326")
                 gdf.to_file(output_path, driver="GeoJSON" if output_path.suffix == ".geojson" else "ESRI Shapefile")
                 logger.info(f"Saved {len(gdf)} geospatial records to {output_path}")
+                
+                # Check pagination
+                if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
+                    logger.info("Dataset may have more records, using pagination...")
+                    return fetch_with_pagination(
+                        resource_id, output_path, api_version, base_url,
+                        format_type, where_clause, select_cols, page_size=params["$limit"]
+                    )
                 return True
             else:
                 df = pd.DataFrame()
+                fetched_count = 0
         
         if len(df) == 0:
             logger.warning(f"No data returned for {resource_id}")
             return False
+        
+        # Check if we need pagination for JSON data
+        if use_pagination and fetched_count and fetched_count == params["$limit"]:
+            logger.info("Fetched exactly the limit. Using pagination to check for more records...")
+            return fetch_with_pagination(
+                resource_id, output_path, api_version, base_url,
+                format_type, where_clause, select_cols, page_size=params["$limit"]
+            )
         
         # Check if it's geospatial data
         geom_cols = ["geometry", "the_geom", "location", "point", "shape"]
@@ -468,12 +481,29 @@ def fetch_all_datasets():
         for name in required_files:
             if not results.get(name, False):
                 logger.error(f"  - {name}: FAILED")
+        logger.error("=" * 60)
+        logger.error("CRITICAL: Cannot proceed without required datasets!")
+        logger.error("=" * 60)
         raise RuntimeError(f"Failed to fetch required datasets. Only {success_count}/{len(required_files)} succeeded.")
     
-    logger.info(f"Successfully fetched {success_count} required datasets")
+    logger.info(f"✅ Successfully fetched {success_count} required datasets")
+    logger.info("=" * 60)
     return results
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    fetch_all_datasets()
+    import sys
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        stream=sys.stdout
+    )
+    try:
+        fetch_all_datasets()
+        logger.info("✅ All datasets fetched successfully!")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"❌ Fatal error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        sys.exit(1)

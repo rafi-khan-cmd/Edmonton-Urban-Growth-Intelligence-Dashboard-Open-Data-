@@ -19,10 +19,8 @@ neighbourhoods:
   api_version: "soda3"  # Uses /api/v3/views/ format
   format: "geojson"  # or "csv", "json", "auto"
   output_file: "neighbourhoods.geojson"
-  # Optional: limit: 50000 (SODA2 max) or 1000 (default). Set higher to reduce pagination requests
-  # Optional: use_pagination: true (automatically fetch all records using $offset)
-  # Optional: where: "some_column > '2020-01-01'"
-  # Optional: select: ["col1", "col2"]
+  limit: 50000
+  use_pagination: true
 
 business_licences:
   resource_id: "qhi4-bdpu"  # City of Edmonton Business Licences
@@ -57,8 +55,7 @@ zoning:
   format: "geojson"  # Prefer GeoJSON for spatial data, or "csv" if needed
   output_file: "Zoning_Bylaw_Geographical_Data_20260301.geojson"
   limit: 50000
-  use_pagination: true  # Automatically fetch all records using $offset pagination
-  # Note: Contains geometry_multipolygon, zoning code, description for area-weighted zoning shares
+  use_pagination: true
 
 property_assessment:
   resource_id: "q7d6-ambg"  # City of Edmonton Property Assessment Data (Current Year)
