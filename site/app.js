@@ -21,7 +21,11 @@ function initMap() {
 // Load Model Card
 async function loadModelCard() {
     try {
-        const response = await fetch('assets/model_card.json');
+        const response = await fetch('assets/model_card.json?v=' + Date.now());
+        if (!response.ok) {
+            console.warn('Model card not found, using defaults');
+            return;
+        }
         modelCard = await response.json();
         
         // Update Model Card UI
@@ -45,7 +49,10 @@ async function loadData() {
         document.getElementById('topKContent').innerHTML = '<div class="loading">Loading predictions...</div>';
         
         // Load predictions
-        const predictionsResponse = await fetch('assets/predictions.geojson');
+        const predictionsResponse = await fetch('assets/predictions.geojson?v=' + Date.now());
+        if (!predictionsResponse.ok) {
+            throw new Error('Failed to load predictions.geojson');
+        }
         const predictions = await predictionsResponse.json();
         
         // Organize by year
@@ -58,27 +65,32 @@ async function loadData() {
         });
         
         // Load timeseries
-        const timeseriesResponse = await fetch('assets/timeseries.csv');
-        const timeseriesText = await timeseriesResponse.text();
-        const lines = timeseriesText.split('\n');
-        const headers = lines[0].split(',');
-        
-        timeseriesData = {};
-        for (let i = 1; i < lines.length; i++) {
-            if (!lines[i].trim()) continue;
-            const values = lines[i].split(',');
-            const name = values[0];
-            const year = parseInt(values[1]);
+        const timeseriesResponse = await fetch('assets/timeseries.csv?v=' + Date.now());
+        if (!timeseriesResponse.ok) {
+            console.warn('Timeseries not found, continuing without it');
+            timeseriesData = {};
+        } else {
+            const timeseriesText = await timeseriesResponse.text();
+            const lines = timeseriesText.split('\n');
+            const headers = lines[0].split(',');
             
-            if (!timeseriesData[name]) {
-                timeseriesData[name] = [];
+            timeseriesData = {};
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i].trim()) continue;
+                const values = lines[i].split(',');
+                const name = values[0];
+                const year = parseInt(values[1]);
+                
+                if (!timeseriesData[name]) {
+                    timeseriesData[name] = [];
+                }
+                
+                const record = {};
+                headers.forEach((h, idx) => {
+                    record[h] = values[idx];
+                });
+                timeseriesData[name].push(record);
             }
-            
-            const record = {};
-            headers.forEach((h, idx) => {
-                record[h] = values[idx];
-            });
-            timeseriesData[name].push(record);
         }
         
         // Populate year selector
