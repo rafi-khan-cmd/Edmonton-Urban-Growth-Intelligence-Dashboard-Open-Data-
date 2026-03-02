@@ -44,15 +44,18 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
         if select_cols:
             params["$select"] = ",".join(select_cols)
         
-        # Build URL
-        if api_version == "soda2":
-            url = f"{base_url}/resource/{resource_id}.{format_type}"
-        else:
-            url = f"{base_url}/api/v3/views/{resource_id}/query.{format_type}"
+        # Build URL - use resource endpoint (public, no auth)
+        url = f"{base_url}/resource/{resource_id}.{format_type}"
         
         try:
             logger.info(f"Fetching page {page_num} (offset: {offset})...")
-            response = requests.get(url, params=params, timeout=120)
+            headers = {
+                'User-Agent': 'Edmonton-Growth-Dashboard/1.0'
+            }
+            response = requests.get(url, params=params, headers=headers, timeout=120)
+            if response.status_code == 403 and params:
+                logger.warning("Got 403, trying without params...")
+                response = requests.get(url, headers=headers, timeout=120)
             response.raise_for_status()
             
             if format_type == "csv":
@@ -190,24 +193,14 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
             format_type = "json"
     
     # Build URL based on format and API version
-    if api_version == "soda2":
-        if format_type == "csv":
-            url = f"{base_url}/resource/{resource_id}.csv"
-        elif format_type == "geojson":
-            url = f"{base_url}/resource/{resource_id}.geojson"
-        else:
-            url = f"{base_url}/resource/{resource_id}.json"
-    elif api_version == "soda3":
-        # SODA3 can use /api/views/ or /api/v3/views/
-        # Try v3 first (newer format), fallback to v1
-        if format_type == "csv":
-            url = f"{base_url}/api/v3/views/{resource_id}/query.csv"
-        elif format_type == "geojson":
-            url = f"{base_url}/api/v3/views/{resource_id}/query.geojson"
-        else:
-            url = f"{base_url}/api/v3/views/{resource_id}/query.json"
+    # For public open data, use resource endpoint (no auth required)
+    # If api_version is soda3, try resource endpoint first (same data, different format)
+    if format_type == "csv":
+        url = f"{base_url}/resource/{resource_id}.csv"
+    elif format_type == "geojson":
+        url = f"{base_url}/resource/{resource_id}.geojson"
     else:
-        raise ValueError(f"Unknown API version: {api_version}")
+        url = f"{base_url}/resource/{resource_id}.json"
     
     params = {}
     # Socrata default limit is 1,000 rows
@@ -232,10 +225,19 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         logger.info(f"Full URL: {url}")
     
     try:
-        response = requests.get(url, params=params, timeout=120)  # Longer timeout for large datasets
+        # Add User-Agent header (some APIs require it)
+        headers = {
+            'User-Agent': 'Edmonton-Growth-Dashboard/1.0 (https://github.com/rafi-khan-cmd/Edmonton-Urban-Growth-Intelligence-Dashboard-Open-Data-)'
+        }
+        response = requests.get(url, params=params, headers=headers, timeout=120)
         logger.info(f"Response status: {response.status_code}")
         if response.status_code != 200:
             logger.error(f"API returned status {response.status_code}: {response.text[:500]}")
+            # If 403, try without query params (some endpoints don't support them)
+            if response.status_code == 403 and params:
+                logger.warning("Got 403, trying without query parameters...")
+                response = requests.get(url, headers=headers, timeout=120)
+                logger.info(f"Retry response status: {response.status_code}")
         response.raise_for_status()
         
         # Check if we hit the limit and need pagination
