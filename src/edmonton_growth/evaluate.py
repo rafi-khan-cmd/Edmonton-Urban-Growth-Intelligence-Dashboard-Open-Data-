@@ -39,6 +39,11 @@ def evaluate_model(results, full_df):
     metrics = results["metrics"]
     metrics["top_k_overlap"] = overlap
     
+    # Compute error analysis (worst predictions)
+    pred_df["error"] = abs(pred_df["y_pred"] - pred_df["y_true"])
+    worst_errors = pred_df.nlargest(10, "error")[["name", "year", "y_true", "y_pred", "error"]].to_dict("records")
+    metrics["worst_errors"] = worst_errors
+    
     logger.info(f"Top-{top_k} overlap: {overlap:.3f}")
     
     return metrics

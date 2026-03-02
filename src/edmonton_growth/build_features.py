@@ -119,4 +119,27 @@ def build_modeling_table(neighbourhoods_gdf, business_agg, dev_permits_agg, buil
     # Remove rows where target is NaN (last year for each neighbourhood)
     base = base.dropna(subset=["y"])
     
+    # Compute novel metrics
+    # Emergence Score = growth acceleration (second derivative)
+    base = base.sort_values(["name", "year"])
+    base["business_acceleration"] = base.groupby("name")["business_growth_rate"].diff()
+    base["emergence_score"] = base["business_acceleration"] * base["business_growth_rate"]
+    
+    # Build-Pressure Score = permits growth × future-dev zoning %
+    if "permit_growth_rate" in base.columns and "zoning_future_dev_pct" in base.columns:
+        base["build_pressure_score"] = (
+            base["permit_growth_rate"].fillna(0) * 
+            (base["zoning_future_dev_pct"] / 100).fillna(0)
+        )
+    else:
+        base["build_pressure_score"] = 0
+    
+    # Commercial Gap Score = predicted growth − existing business density
+    if "y_pred" in base.columns and "active_businesses" in base.columns:
+        # Normalize active_businesses for density proxy
+        base["business_density"] = base.groupby("name")["active_businesses"].transform(lambda x: (x - x.min()) / (x.max() - x.min() + 1))
+        base["commercial_gap_score"] = base["y_pred"] - base["business_density"] * 10  # Scale factor
+    else:
+        base["commercial_gap_score"] = 0
+    
     return base

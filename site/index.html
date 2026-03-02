@@ -8,42 +8,166 @@
     <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+    <!-- Model Card Panel (Always Visible) -->
+    <div id="modelCard" class="model-card">
+        <div class="model-card-content">
+            <div class="model-card-section">
+                <h3>Model Performance</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <span class="metric-label">MAE (Test)</span>
+                        <span class="metric-value" id="metricMae">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">RMSE (Test)</span>
+                        <span class="metric-value" id="metricRmse">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Top-20 Overlap</span>
+                        <span class="metric-value" id="metricTopK">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="model-card-section">
+                <h3>Data Coverage</h3>
+                <div class="metrics-grid">
+                    <div class="metric">
+                        <span class="metric-label">Train Years</span>
+                        <span class="metric-value" id="trainYears">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Test Years</span>
+                        <span class="metric-value" id="testYears">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Neighbourhoods</span>
+                        <span class="metric-value" id="numNeighbourhoods">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="model-card-section">
+                <div class="data-freshness">
+                    <span class="badge">Data Freshness</span>
+                    <span id="dataFreshness">Loading...</span>
+                </div>
+                <div class="last-updated">
+                    <small>Last Updated: <span id="lastUpdated">-</span></small>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <h1>Edmonton Urban Growth Intelligence Dashboard</h1>
-            <p class="subtitle">Predicting Commercial Growth by Neighbourhood</p>
+            <p class="subtitle">Predicting Commercial & Development Growth by Neighbourhood</p>
         </header>
         
         <div class="controls">
-            <label for="yearSelect">Select Year:</label>
-            <select id="yearSelect"></select>
-            <button id="refreshBtn">Refresh Data</button>
+            <div class="control-group">
+                <label for="yearSelect">Year:</label>
+                <select id="yearSelect"></select>
+            </div>
+            <div class="control-group">
+                <label for="viewMode">View:</label>
+                <select id="viewMode">
+                    <option value="score">Growth Score (0-100)</option>
+                    <option value="predicted">Predicted Count</option>
+                    <option value="actual">Actual Count</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="growthTarget">Target:</label>
+                <select id="growthTarget">
+                    <option value="commercial">Commercial Growth</option>
+                    <option value="development">Development Growth</option>
+                    <option value="composite">Urban Growth Index</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="zoningFilter">Min Future Dev %:</label>
+                <input type="number" id="zoningFilter" min="0" max="100" value="0" step="5">
+            </div>
+            <button id="refreshBtn">Refresh</button>
+        </div>
+
+        <!-- Scenario Mode Toggle -->
+        <div class="scenario-controls">
+            <label>
+                <input type="checkbox" id="scenarioMode"> Scenario Mode
+            </label>
+            <div id="scenarioSliders" class="scenario-sliders hidden">
+                <div class="slider-group">
+                    <label>Permits Adjustment: <span id="permitsAdj">0%</span></label>
+                    <input type="range" id="permitsSlider" min="-50" max="50" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Construction Value: <span id="constructionAdj">0%</span></label>
+                    <input type="range" id="constructionSlider" min="-50" max="50" value="0">
+                </div>
+                <div class="slider-group">
+                    <label>Future Dev Zoning: <span id="zoningAdj">0%</span></label>
+                    <input type="range" id="zoningSlider" min="-20" max="20" value="0">
+                </div>
+                <button id="resetScenario">Reset</button>
+            </div>
         </div>
         
         <div class="main-content">
             <div class="sidebar">
-                <h2>Top 10 Neighbourhoods</h2>
-                <div id="topNeighbourhoods"></div>
-                
+                <!-- Top-K Lists -->
+                <div class="top-k-section">
+                    <h2>Top Rankings</h2>
+                    <div class="top-k-tabs">
+                        <button class="tab-btn active" data-tab="emerging">Emerging</button>
+                        <button class="tab-btn" data-tab="absolute">High Growth</button>
+                        <button class="tab-btn" data-tab="underserved">Under-served</button>
+                    </div>
+                    <div id="topKContent" class="top-k-content"></div>
+                </div>
+
+                <!-- Evaluation Section -->
+                <div class="evaluation-section">
+                    <h2>Evaluation</h2>
+                    <div class="eval-tabs">
+                        <button class="tab-btn" data-tab="validation">Validation</button>
+                        <button class="tab-btn" data-tab="errors">Error Analysis</button>
+                    </div>
+                    <div id="evaluationContent" class="evaluation-content"></div>
+                </div>
+
+                <!-- Methodology -->
                 <div class="methodology">
                     <h3>Methodology</h3>
                     <p><strong>Growth Definition:</strong> Predicted number of new business licences in year (t+1) based on features from year t.</p>
                     <p><strong>Features:</strong> Business activity, development permits, building permits, zoning capacity, and vibrancy indicators.</p>
                     <p><strong>Model:</strong> Gradient Boosting (LightGBM) with time-based train/test split.</p>
                     <p><strong>Validation:</strong> Trained on earlier years, tested on most recent 1-2 years.</p>
-                    <p><strong>Limitations:</strong> This is a proxy measure. Actual growth depends on many factors not captured in open data.</p>
+                    <p class="disclaimer"><strong>Disclaimer:</strong> Explanations indicate correlation, not causation. This is a proxy measure.</p>
                 </div>
             </div>
             
             <div class="map-container">
                 <div id="map"></div>
+                <div id="legend" class="legend">
+                    <h4>Growth Score</h4>
+                    <div class="legend-gradient"></div>
+                    <div class="legend-labels">
+                        <span>Low</span>
+                        <span>High</span>
+                    </div>
+                </div>
             </div>
         </div>
         
+        <!-- Info Panel -->
         <div id="infoPanel" class="info-panel hidden">
             <button id="closePanel" class="close-btn">×</button>
             <h2 id="panelTitle"></h2>
             <div id="panelContent"></div>
+            <div class="panel-actions">
+                <button id="compareBtn" class="btn-primary">Compare</button>
+            </div>
             <canvas id="chartCanvas"></canvas>
         </div>
     </div>
