@@ -43,11 +43,27 @@ def run_pipeline(fetch_from_api=False):
     
     # 1. Ingest data
     logger.info("Step 1: Ingesting data...")
-    neighbourhoods = load_neighbourhoods()
-    business_licences = load_business_licences()
+    try:
+        neighbourhoods = load_neighbourhoods()
+    except Exception as e:
+        logger.error(f"Failed to load neighbourhoods: {e}")
+        raise
+    
+    try:
+        business_licences = load_business_licences()
+    except Exception as e:
+        logger.error(f"Failed to load business_licences: {e}")
+        raise
+    
     dev_permits = load_development_permits()
     building_permits = load_building_permits()
-    zoning = load_zoning()
+    
+    try:
+        zoning = load_zoning()
+    except Exception as e:
+        logger.error(f"Failed to load zoning: {e}")
+        raise
+    
     ped_bike = load_ped_bike_counts()
     
     logger.info(f"Loaded {len(neighbourhoods)} neighbourhoods")

@@ -394,25 +394,13 @@ def fetch_all_datasets():
     data_dir = root / "data" / "raw"
     data_dir.mkdir(parents=True, exist_ok=True)
     
-    # Load API config (create if doesn't exist)
+    # Load API config
     try:
         api_config = load_config("api_endpoints")
     except FileNotFoundError:
-        logger.warning("No api_endpoints.yml found. Create config/api_endpoints.yml with resource IDs.")
-        logger.info("Example format:")
-        logger.info("""
-neighbourhoods:
-  resource_id: "xxxx-xxxx"
-  api_version: "soda2"
-  output_file: "neighbourhoods.geojson"
-
-business_licences:
-  resource_id: "xxxx-xxxx"
-  api_version: "soda2"
-  output_file: "business_licences.csv"
-  limit: 50000
-        """)
-        return False
+        logger.error("No api_endpoints.yml found. Create config/api_endpoints.yml with resource IDs.")
+        logger.error("Copy config/api_endpoints.yml.example to config/api_endpoints.yml")
+        raise FileNotFoundError("config/api_endpoints.yml not found")
     
     datasets_config = load_config("datasets")
     

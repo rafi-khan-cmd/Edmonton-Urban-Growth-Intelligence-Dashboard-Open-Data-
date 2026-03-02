@@ -33,6 +33,19 @@ jobs:
       run: |
         pip install -e .
     
+    - name: Create data directories
+      run: |
+        mkdir -p data/raw data/processed
+    
+    - name: Check API config exists
+      run: |
+        if [ ! -f "config/api_endpoints.yml" ]; then
+          echo "ERROR: config/api_endpoints.yml not found!"
+          echo "Copy config/api_endpoints.yml.example to config/api_endpoints.yml"
+          exit 1
+        fi
+        echo "API config file found"
+    
     - name: Fetch data from APIs
       run: |
         export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}/src"
@@ -41,6 +54,34 @@ jobs:
       id: fetch_data
       env:
         PYTHONPATH: ${{ github.workspace }}/src
+    
+    - name: Verify required data files
+      run: |
+        echo "Checking for required data files..."
+        ls -la data/raw/ || echo "No files in data/raw/"
+        
+        # Check for neighbourhoods (required)
+        if [ ! -f "data/raw/neighbourhoods.geojson" ] && [ ! -f "data/raw/neighbourhoods.csv" ]; then
+          echo "ERROR: Required file 'neighbourhoods.geojson' or 'neighbourhoods.csv' not found!"
+          echo "API fetch failed. Check the fetch_data step logs above."
+          exit 1
+        fi
+        
+        # Check for business_licences (required)
+        if [ ! -f "data/raw/business_licences.csv" ]; then
+          echo "ERROR: Required file 'business_licences.csv' not found!"
+          echo "API fetch failed. Check the fetch_data step logs above."
+          exit 1
+        fi
+        
+        # Check for zoning (required)
+        if [ ! -f "data/raw/Zoning_Bylaw_Geographical_Data_20260301.geojson" ] && [ ! -f "data/raw/Zoning_Bylaw_Geographical_Data_20260301.csv" ]; then
+          echo "ERROR: Required file 'Zoning_Bylaw_Geographical_Data_20260301.geojson' or '.csv' not found!"
+          echo "API fetch failed. Check the fetch_data step logs above."
+          exit 1
+        fi
+        
+        echo "✅ All required data files found"
     
     - name: Run pipeline
       run: |
