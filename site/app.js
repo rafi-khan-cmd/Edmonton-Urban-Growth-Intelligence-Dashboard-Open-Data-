@@ -13,8 +13,11 @@ let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
 // Initialize
 function initMap() {
     map = L.map('map').setView([53.5461, -113.4938], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+    // Use dark theme map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
     }).addTo(map);
 }
 
@@ -146,13 +149,15 @@ function updateMap() {
             const value = getValue(feature);
             const normalized = (value - minValue) / (maxValue - minValue || 1);
             
-            // Color scale: blue (low) to red (high)
-            const hue = (1 - normalized) * 240;
+            // Modern color scale: purple/blue (low) to pink/red (high)
+            const hue = 240 - (normalized * 240); // 240 (blue) to 0 (red)
+            const saturation = 70 + (normalized * 20); // 70% to 90%
+            const lightness = 45 + (normalized * 10); // 45% to 55%
             return {
-                fillColor: `hsl(${hue}, 70%, 50%)`,
-                color: '#333',
-                weight: 1,
-                fillOpacity: 0.7
+                fillColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                color: 'rgba(255, 255, 255, 0.3)',
+                weight: 1.5,
+                fillOpacity: 0.8
             };
         },
         onEachFeature: function(feature, layer) {
