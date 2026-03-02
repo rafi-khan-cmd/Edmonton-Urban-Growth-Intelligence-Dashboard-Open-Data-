@@ -19,24 +19,24 @@ business_licences:
 development_permits:
   file: "development_permits.csv"
   date_col: "issue_date"
-  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "permit_date"]
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE", "issued", "ISSUED", "application_date", "APPLICATION_DATE"]
   type_col: "permit_type"
-  type_col_alt: ["PERMIT_TYPE", "type", "category"]
+  type_col_alt: ["PERMIT_TYPE", "type", "TYPE", "category", "CATEGORY", "permit_category", "PERMIT_CATEGORY"]
   lat_col: "latitude"
-  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lat_col_alt: ["LATITUDE", "lat", "LAT", "y", "location_latitude", "LOCATION_LATITUDE"]
   lon_col: "longitude"
-  lon_col_alt: ["LONGITUDE", "lon", "x"]
+  lon_col_alt: ["LONGITUDE", "lon", "LON", "x", "location_longitude", "LOCATION_LONGITUDE"]
 
 building_permits:
   file: "building_permits.csv"
   date_col: "issue_date"
-  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "permit_date"]
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE", "issued", "ISSUED", "application_date", "APPLICATION_DATE"]
   value_col: "construction_value"
-  value_col_alt: ["CONSTRUCTION_VALUE", "value", "cost", "estimated_value"]
+  value_col_alt: ["CONSTRUCTION_VALUE", "value", "VALUE", "cost", "COST", "estimated_value", "ESTIMATED_VALUE", "project_value", "PROJECT_VALUE"]
   lat_col: "latitude"
-  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lat_col_alt: ["LATITUDE", "lat", "LAT", "y", "location_latitude", "LOCATION_LATITUDE"]
   lon_col: "longitude"
-  lon_col_alt: ["LONGITUDE", "lon", "x"]
+  lon_col_alt: ["LONGITUDE", "lon", "LON", "x", "location_longitude", "LOCATION_LONGITUDE"]
 
 zoning:
   file: "Zoning_Bylaw_Geographical_Data_20260301.geojson"

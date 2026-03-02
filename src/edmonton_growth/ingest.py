@@ -131,19 +131,19 @@ def load_development_permits():
         logger.warning(f"Could not find {config['file']}, returning empty GeoDataFrame")
         return gpd.GeoDataFrame()
     
+    logger.info(f"Development permits columns: {list(df.columns)}")
+    
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        date_col = find_column(df, "issue_date", ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE"])
-    if not date_col:
-        logger.warning(f"Could not find date column in development_permits. Available: {list(df.columns)}")
-        return gpd.GeoDataFrame()
+        raise ValueError(f"Could not find date column '{config['date_col']}' in development_permits. Available columns: {list(df.columns)}")
     
     lat_col = find_column(df, config["lat_col"], config.get("lat_col_alt", []))
-    lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
+    if not lat_col:
+        raise ValueError(f"Could not find latitude column '{config['lat_col']}' in development_permits. Available columns: {list(df.columns)}")
     
-    if not lat_col or not lon_col:
-        logger.warning(f"Could not find lat/lon columns in development_permits. Available: {list(df.columns)}")
-        return gpd.GeoDataFrame()
+    lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
+    if not lon_col:
+        raise ValueError(f"Could not find longitude column '{config['lon_col']}' in development_permits. Available columns: {list(df.columns)}")
     
     from shapely.geometry import Point
     df["geometry"] = df.apply(lambda row: Point(row[lon_col], row[lat_col]), axis=1)
@@ -171,15 +171,37 @@ def load_building_permits():
         logger.warning(f"Could not find {config['file']}, returning empty GeoDataFrame")
         return gpd.GeoDataFrame()
     
+    logger.info(f"Building permits columns: {list(df.columns)}")
+    
+    # Try multiple date column variations
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        date_col = find_column(df, "issue_date", ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE"])
+        for alt in ["issue_date", "ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE", "issued", "ISSUED", "application_date", "APPLICATION_DATE"]:
+            if alt in df.columns:
+                date_col = alt
+                logger.info(f"Found date column: {date_col}")
+                break
+    
     if not date_col:
         logger.warning(f"Could not find date column in building_permits. Available: {list(df.columns)}")
         return gpd.GeoDataFrame()
     
+    # Try multiple lat/lon variations
     lat_col = find_column(df, config["lat_col"], config.get("lat_col_alt", []))
+    if not lat_col:
+        for alt in ["latitude", "LATITUDE", "lat", "LAT", "y", "location_latitude", "LOCATION_LATITUDE"]:
+            if alt in df.columns:
+                lat_col = alt
+                logger.info(f"Found latitude column: {lat_col}")
+                break
+    
     lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
+    if not lon_col:
+        for alt in ["longitude", "LONGITUDE", "lon", "LON", "x", "location_longitude", "LOCATION_LONGITUDE"]:
+            if alt in df.columns:
+                lon_col = alt
+                logger.info(f"Found longitude column: {lon_col}")
+                break
     
     if not lat_col or not lon_col:
         logger.warning(f"Could not find lat/lon columns in building_permits. Available: {list(df.columns)}")
@@ -190,7 +212,15 @@ def load_building_permits():
     gdf = gpd.GeoDataFrame(df, geometry="geometry", crs="EPSG:4326")
     gdf = gdf.rename(columns={date_col: "issue_date"})
     
+    # Try to find construction value column
     value_col = find_column(df, config.get("value_col", ""), config.get("value_col_alt", []))
+    if not value_col:
+        for alt in ["construction_value", "CONSTRUCTION_VALUE", "value", "VALUE", "cost", "COST", "estimated_value", "ESTIMATED_VALUE", "project_value", "PROJECT_VALUE"]:
+            if alt in df.columns:
+                value_col = alt
+                logger.info(f"Found construction value column: {value_col}")
+                break
+    
     if value_col:
         gdf = gdf.rename(columns={value_col: "construction_value"})
         gdf["construction_value"] = pd.to_numeric(gdf["construction_value"], errors='coerce').fillna(0)

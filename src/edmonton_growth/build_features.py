@@ -50,17 +50,33 @@ def build_modeling_table(neighbourhoods_gdf, business_agg, dev_permits_agg, buil
     base = base.sort_values(["name", "year"])
     base["y"] = base.groupby("name")["new_businesses"].shift(-1)
     
-    # Merge permit data
+    # Merge permit data - robust handling
     if len(dev_permits_agg) > 0:
+        logger.info(f"Dev permits agg columns: {list(dev_permits_agg.columns)}")
         base = base.merge(dev_permits_agg, on=["name", "year"], how="left")
-        base["total_dev_permits"] = base["total_dev_permits"].fillna(0)
+        # Handle different possible column names from aggregate function
+        if "total_dev_permits" in base.columns:
+            base["total_dev_permits"] = base["total_dev_permits"].fillna(0)
+        elif "total_development_permits" in base.columns:
+            base["total_dev_permits"] = base["total_development_permits"].fillna(0)
+            base = base.drop(columns=["total_development_permits"], errors="ignore")
+        else:
+            logger.warning(f"Could not find dev permits column. Available: {list(base.columns)}")
+            base["total_dev_permits"] = 0
     else:
         base["total_dev_permits"] = 0
     
     if len(building_permits_agg) > 0:
+        logger.info(f"Building permits agg columns: {list(building_permits_agg.columns)}")
         base = base.merge(building_permits_agg, on=["name", "year"], how="left")
-        base["total_building_permits"] = base["total_building_permits"].fillna(0)
-        if "total_construction_value" in building_permits_agg.columns:
+        # Handle different possible column names
+        if "total_building_permits" in base.columns:
+            base["total_building_permits"] = base["total_building_permits"].fillna(0)
+        else:
+            logger.warning(f"Could not find building permits column. Available: {list(base.columns)}")
+            base["total_building_permits"] = 0
+        
+        if "total_construction_value" in base.columns:
             base["total_construction_value"] = base["total_construction_value"].fillna(0)
         else:
             base["total_construction_value"] = 0
