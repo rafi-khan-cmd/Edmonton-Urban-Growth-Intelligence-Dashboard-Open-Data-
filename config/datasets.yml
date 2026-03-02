@@ -7,9 +7,9 @@ neighbourhoods:
 
 business_licences:
   file: "business_licences.csv"
-  date_col: "issue_date"
-  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE", "licence_issue_date", "LICENCE_ISSUE_DATE", "issued", "ISSUED"]
-  status_col: "status"
+  date_col: "most_recent_issue_date"  # Actual column name from Edmonton API
+  date_col_alt: ["originalissuedate", "ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE"]
+  status_col: "licencetype"  # Use licencetype as status indicator
   status_col_alt: ["STATUS", "licence_status", "licence_status_description", "STATUS_DESCRIPTION", "current_status"]
   lat_col: "latitude"
   lat_col_alt: ["LATITUDE", "lat", "y", "LAT", "location_latitude", "LOCATION_LATITUDE"]

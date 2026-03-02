@@ -64,8 +64,8 @@ def load_business_licences():
     
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        # Try common alternative names
-        for alt in ["issue_date", "ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE", "licence_issue_date", "LICENCE_ISSUE_DATE", "issued", "ISSUED"]:
+        # Try common alternative names (including Edmonton-specific)
+        for alt in ["most_recent_issue_date", "originalissuedate", "issue_date", "ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE"]:
             if alt in df.columns:
                 date_col = alt
                 logger.info(f"Found date column: {date_col}")
@@ -100,10 +100,18 @@ def load_business_licences():
     # Rename date column
     gdf = gdf.rename(columns={date_col: "issue_date"})
     
-    # Optional status column
+    # Optional status column - use licencetype or expiry_date to determine active status
     status_col = find_column(df, config.get("status_col", ""), config.get("status_col_alt", []))
     if status_col:
         gdf = gdf.rename(columns={status_col: "status"})
+    elif "expiry_date" in df.columns:
+        # Use expiry_date to determine if active (not expired)
+        from datetime import datetime
+        gdf["status"] = gdf["expiry_date"].apply(
+            lambda x: "Active" if pd.notna(x) and pd.to_datetime(x, errors='coerce') > datetime.now() else "Expired"
+        )
+    elif "licencetype" in df.columns:
+        gdf["status"] = "Active"  # Assume all are active if we have licencetype
     
     # Parse dates
     gdf["issue_date"] = pd.to_datetime(gdf["issue_date"], errors='coerce')
