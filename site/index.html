@@ -87,6 +87,13 @@
         </header>
         
         <div class="controls">
+            <div class="search-container">
+                <label for="neighborhoodSearch">Search Neighborhood:</label>
+                <div class="search-wrapper">
+                    <input type="text" id="neighborhoodSearch" placeholder="Type to search neighborhoods..." autocomplete="off">
+                    <div id="searchSuggestions" class="search-suggestions hidden"></div>
+                </div>
+            </div>
             <div class="control-group">
                 <label for="yearSelect">Year:</label>
                 <select id="yearSelect"></select>
@@ -94,17 +101,9 @@
             <div class="control-group">
                 <label for="viewMode">View:</label>
                 <select id="viewMode">
-                    <option value="score">Growth Score (0-100)</option>
+                    <option value="score">Growth Score</option>
                     <option value="predicted">Predicted Count</option>
                     <option value="actual">Actual Count</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label for="growthTarget">Target:</label>
-                <select id="growthTarget">
-                    <option value="commercial">Commercial Growth</option>
-                    <option value="development">Development Growth</option>
-                    <option value="composite">Urban Growth Index</option>
                 </select>
             </div>
             <div class="control-group">
@@ -116,23 +115,37 @@
 
         <!-- Scenario Mode Toggle -->
         <div class="scenario-controls">
-            <label>
-                <input type="checkbox" id="scenarioMode"> Scenario Mode
-            </label>
+            <div class="scenario-header">
+                <label>
+                    <input type="checkbox" id="scenarioMode"> 
+                    <span class="scenario-label">Scenario Analysis Mode</span>
+                </label>
+                <div class="scenario-help">
+                    <span class="help-icon">?</span>
+                    <div class="help-tooltip">
+                        <strong>What-if Analysis:</strong> Adjust key indicators to see how predicted growth would change. 
+                        For example, increase permits by 20% to simulate a development boom scenario. 
+                        The map updates in real-time to show new rankings.
+                    </div>
+                </div>
+            </div>
             <div id="scenarioSliders" class="scenario-sliders hidden">
                 <div class="slider-group">
-                    <label>Permits Adjustment: <span id="permitsAdj">0%</span></label>
+                    <label>Development Permits: <span id="permitsAdj">0%</span></label>
                     <input type="range" id="permitsSlider" min="-50" max="50" value="0">
+                    <small>Adjust total development permits issued</small>
                 </div>
                 <div class="slider-group">
                     <label>Construction Value: <span id="constructionAdj">0%</span></label>
                     <input type="range" id="constructionSlider" min="-50" max="50" value="0">
+                    <small>Adjust total construction investment</small>
                 </div>
                 <div class="slider-group">
                     <label>Future Dev Zoning: <span id="zoningAdj">0%</span></label>
                     <input type="range" id="zoningSlider" min="-20" max="20" value="0">
+                    <small>Adjust percentage zoned for future development</small>
                 </div>
-                <button id="resetScenario">Reset</button>
+                <button id="resetScenario">Reset All</button>
             </div>
         </div>
         
@@ -157,6 +170,27 @@
                         <button class="tab-btn" data-tab="errors">Error Analysis</button>
                     </div>
                     <div id="evaluationContent" class="evaluation-content"></div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="help-section">
+                    <h2>Understanding the Dashboard</h2>
+                    <div class="help-item">
+                        <strong>Growth Score:</strong>
+                        <p>A normalized score (0-100) representing predicted commercial growth potential. 
+                        Higher scores indicate neighborhoods with stronger predicted growth signals based on 
+                        permits, construction value, zoning, and business activity patterns.</p>
+                    </div>
+                    <div class="help-item">
+                        <strong>Predicted Count:</strong>
+                        <p>The actual number of new business licences predicted for the next year (t+1) 
+                        based on features from the current year (t).</p>
+                    </div>
+                    <div class="help-item">
+                        <strong>Scenario Mode:</strong>
+                        <p>Run "what-if" analyses by adjusting key indicators. See how hypothetical changes 
+                        to permits, construction value, or zoning would affect growth predictions and rankings.</p>
+                    </div>
                 </div>
 
                 <!-- Methodology -->

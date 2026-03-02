@@ -260,9 +260,83 @@ header h1 {
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 20px;
     flex-wrap: wrap;
+}
+
+.search-container {
+    flex: 1;
+    min-width: 300px;
+    max-width: 400px;
+}
+
+.search-container label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.75em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.search-wrapper {
+    position: relative;
+}
+
+#neighborhoodSearch {
+    width: 100%;
+    padding: 10px 16px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+#neighborhoodSearch:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    background: var(--bg-secondary);
+}
+
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-top: 4px;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+}
+
+.search-suggestions.hidden {
+    display: none;
+}
+
+.suggestion-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+    color: var(--text-primary);
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background: var(--bg-tertiary);
 }
 
 .control-group {
@@ -335,6 +409,85 @@ header h1 {
     margin-bottom: 24px;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--border);
+}
+
+.scenario-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 0;
+}
+
+.scenario-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9em;
+}
+
+.scenario-help {
+    position: relative;
+    cursor: help;
+}
+
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    font-size: 0.75em;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+}
+
+.help-icon:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
+.help-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 8px;
+    width: 280px;
+    padding: 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 1000;
+}
+
+.scenario-help:hover .help-tooltip {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.help-tooltip strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    font-size: 0.9em;
+}
+
+.slider-group small {
+    display: block;
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-top: 4px;
 }
 
 .scenario-controls label {
@@ -572,7 +725,7 @@ header h1 {
 #map {
     width: 100%;
     height: 750px;
-    background: var(--bg-secondary);
+    background: #f5f5f5;
 }
 
 .legend {
@@ -623,13 +776,156 @@ header h1 {
     padding: 32px;
     border-radius: 16px;
     box-shadow: var(--shadow-xl);
-    max-width: 650px;
+    max-width: 700px;
     width: 90%;
     max-height: 85vh;
     overflow-y: auto;
     z-index: 2000;
     border: 1px solid var(--border);
     backdrop-filter: blur(20px);
+}
+
+.info-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.info-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.info-section h3 {
+    font-size: 1em;
+    font-weight: 700;
+    color: var(--primary-light);
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.info-help {
+    margin-left: 8px;
+    cursor: help;
+    opacity: 0.6;
+    font-size: 0.9em;
+}
+
+.info-help:hover {
+    opacity: 1;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.feature-item {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.feature-name {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-transform: capitalize;
+}
+
+.feature-value {
+    font-size: 1.2em;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.info-note {
+    font-size: 0.85em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    font-style: italic;
+}
+
+.error-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.error-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border-left: 3px solid var(--error);
+}
+
+.error-rank {
+    font-weight: 700;
+    color: var(--error);
+    font-size: 1.1em;
+    min-width: 30px;
+}
+
+.error-details {
+    flex: 1;
+}
+
+.error-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.error-metrics {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+
+.error-value {
+    color: var(--error);
+    font-weight: 600;
+}
+
+.help-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 2px solid var(--border);
+}
+
+.help-section h2 {
+    font-size: 1.1em;
+    margin-bottom: 16px;
+    color: var(--primary-light);
+}
+
+.help-item {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.help-item strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    font-size: 0.9em;
+}
+
+.help-item p {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
 }
 
 .info-panel::-webkit-scrollbar {

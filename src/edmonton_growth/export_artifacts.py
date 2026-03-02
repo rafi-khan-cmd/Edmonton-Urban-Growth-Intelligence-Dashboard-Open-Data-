@@ -34,14 +34,17 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
     )
     
     # Normalize predictions to growth_score (0-100)
-    min_pred = pred_df["y_pred"].min()
-    max_pred = pred_df["y_pred"].max()
+    # Use percentile-based normalization to avoid extreme outliers
+    min_pred = pred_df["y_pred"].quantile(0.05)  # 5th percentile
+    max_pred = pred_df["y_pred"].quantile(0.95)  # 95th percentile
     if max_pred > min_pred:
         pred_with_geom["growth_score"] = (
-            (pred_with_geom["y_pred"] - min_pred) / (max_pred - min_pred) * 
+            (pred_with_geom["y_pred"].clip(lower=min_pred, upper=max_pred) - min_pred) / (max_pred - min_pred) * 
             (params["export"]["growth_score_max"] - params["export"]["growth_score_min"]) +
             params["export"]["growth_score_min"]
         )
+        # Clip to ensure 0-100 range
+        pred_with_geom["growth_score"] = pred_with_geom["growth_score"].clip(lower=0, upper=100)
     else:
         pred_with_geom["growth_score"] = 50
     
@@ -125,7 +128,8 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
             "test": {
                 "mae": metrics.get("gradient_boosting", {}).get("mae", 0),
                 "rmse": metrics.get("gradient_boosting", {}).get("rmse", 0),
-                "top_k_overlap": metrics.get("top_k_overlap", 0)
+                "top_k_overlap": metrics.get("top_k_overlap", 0),
+                "worst_errors": metrics.get("worst_errors", [])
             },
             "baseline": {
                 "mae": metrics.get("baseline", {}).get("mae", 0),
