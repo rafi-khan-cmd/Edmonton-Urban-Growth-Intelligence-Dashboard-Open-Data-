@@ -12,50 +12,85 @@ let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
 
 // Initialize
 function initMap() {
-    map = L.map('map').setView([53.5461, -113.4938], 11);
-    // Use dark theme map tiles
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© OpenStreetMap contributors © CARTO',
-        subdomains: 'abcd',
-        maxZoom: 19
-    }).addTo(map);
+    try {
+        const mapElement = document.getElementById('map');
+        if (!mapElement) {
+            console.error('Map element not found!');
+            return;
+        }
+        map = L.map('map').setView([53.5461, -113.4938], 11);
+        // Use dark theme map tiles
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors © CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        console.log('Map initialized');
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
 }
 
 // Load Model Card
 async function loadModelCard() {
     try {
-        const response = await fetch('assets/model_card.json?v=' + Date.now());
+        console.log('Loading model card...');
+        const response = await fetch('assets/model_card.json');
         if (!response.ok) {
-            console.warn('Model card not found, using defaults');
+            console.warn('Model card not found:', response.status);
             return;
         }
         modelCard = await response.json();
+        console.log('Model card loaded:', modelCard);
         
         // Update Model Card UI - check elements exist first
         if (modelCard.metrics && modelCard.metrics.test) {
             const maeEl = document.getElementById('metricMae');
             const rmseEl = document.getElementById('metricRmse');
             const topKEl = document.getElementById('metricTopK');
-            if (maeEl) maeEl.textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
-            if (rmseEl) rmseEl.textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
-            if (topKEl) topKEl.textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
+            if (maeEl) {
+                maeEl.textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
+                console.log('Updated MAE:', maeEl.textContent);
+            }
+            if (rmseEl) {
+                rmseEl.textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
+                console.log('Updated RMSE:', rmseEl.textContent);
+            }
+            if (topKEl) {
+                topKEl.textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
+                console.log('Updated TopK:', topKEl.textContent);
+            }
         }
         if (modelCard.train_test_split) {
             const trainEl = document.getElementById('trainYears');
             const testEl = document.getElementById('testYears');
-            if (trainEl) trainEl.textContent = modelCard.train_test_split.train_years || '-';
-            if (testEl) testEl.textContent = modelCard.train_test_split.test_years || '-';
+            if (trainEl) {
+                trainEl.textContent = modelCard.train_test_split.train_years || '-';
+                console.log('Updated train years:', trainEl.textContent);
+            }
+            if (testEl) {
+                testEl.textContent = modelCard.train_test_split.test_years || '-';
+                console.log('Updated test years:', testEl.textContent);
+            }
         }
         if (modelCard.data_ranges) {
             const neighEl = document.getElementById('numNeighbourhoods');
-            if (neighEl) neighEl.textContent = modelCard.data_ranges.neighbourhoods || '-';
+            if (neighEl) {
+                neighEl.textContent = modelCard.data_ranges.neighbourhoods || '-';
+                console.log('Updated neighbourhoods:', neighEl.textContent);
+            }
         }
         const freshEl = document.getElementById('dataFreshness');
-        if (freshEl) freshEl.textContent = modelCard.data_freshness ? 
-            `City of Edmonton Open Data (${modelCard.data_freshness})` : 'City of Edmonton Open Data';
+        if (freshEl) {
+            freshEl.textContent = modelCard.data_freshness ? 
+                `City of Edmonton Open Data (${modelCard.data_freshness})` : 'City of Edmonton Open Data';
+        }
         const updatedEl = document.getElementById('lastUpdated');
-        if (updatedEl) updatedEl.textContent = modelCard.last_updated ? 
-            new Date(modelCard.last_updated).toLocaleString() : '-';
+        if (updatedEl) {
+            updatedEl.textContent = modelCard.last_updated ? 
+                new Date(modelCard.last_updated).toLocaleString() : '-';
+        }
+        console.log('Model card UI updated');
     } catch (error) {
         console.error('Error loading model card:', error);
     }
@@ -64,16 +99,19 @@ async function loadModelCard() {
 // Load data
 async function loadData() {
     try {
+        console.log('Loading data...');
         // Show loading state
         const topKContent = document.getElementById('topKContent');
         if (topKContent) topKContent.innerHTML = '<div class="loading">Loading predictions...</div>';
         
         // Load predictions
+        console.log('Fetching predictions.geojson...');
         const predictionsResponse = await fetch('assets/predictions.geojson');
         if (!predictionsResponse.ok) {
-            throw new Error('Failed to load predictions.geojson');
+            throw new Error(`Failed to load predictions.geojson: ${predictionsResponse.status}`);
         }
         const predictions = await predictionsResponse.json();
+        console.log('Predictions loaded:', predictions.features ? predictions.features.length : 0, 'features');
         
         // Organize by year
         predictions.features.forEach(feature => {
@@ -521,93 +559,139 @@ function showChart(neighbourhoodName) {
     });
 }
 
-// Event listeners
-document.getElementById('yearSelect').addEventListener('change', (e) => {
-    currentYear = e.target.value;
-    updateMap();
-    updateTopK();
-});
-
-document.getElementById('viewMode').addEventListener('change', (e) => {
-    currentViewMode = e.target.value;
-    updateMap();
-});
-
-document.getElementById('growthTarget').addEventListener('change', (e) => {
-    currentGrowthTarget = e.target.value;
-    // Would need to load different predictions for different targets
-    updateMap();
-});
-
-document.getElementById('zoningFilter').addEventListener('change', () => {
-    updateTopK();
-});
-
-document.getElementById('closePanel').addEventListener('click', () => {
-    document.getElementById('infoPanel').classList.add('hidden');
-});
-
-document.getElementById('refreshBtn').addEventListener('click', () => {
-    loadData();
-    loadModelCard();
-});
-
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active from siblings
-        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        
-        // Update content based on tab
-        if (btn.parentElement.classList.contains('top-k-tabs')) {
+// Setup event listeners (called after DOM is ready)
+function setupEventListeners() {
+    const yearSelect = document.getElementById('yearSelect');
+    if (yearSelect) {
+        yearSelect.addEventListener('change', (e) => {
+            currentYear = e.target.value;
+            updateMap();
             updateTopK();
-        } else if (btn.parentElement.classList.contains('eval-tabs')) {
-            updateEvaluation(btn.dataset.tab);
-        }
-    });
-});
-
-// Scenario mode
-document.getElementById('scenarioMode').addEventListener('change', (e) => {
-    const sliders = document.getElementById('scenarioSliders');
-    if (e.target.checked) {
-        sliders.classList.remove('hidden');
-    } else {
-        sliders.classList.add('hidden');
-        scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-        updateMap();
+        });
     }
-});
 
-document.getElementById('permitsSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.permits = parseFloat(e.target.value);
-    document.getElementById('permitsAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const viewMode = document.getElementById('viewMode');
+    if (viewMode) {
+        viewMode.addEventListener('change', (e) => {
+            currentViewMode = e.target.value;
+            updateMap();
+        });
+    }
 
-document.getElementById('constructionSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.construction = parseFloat(e.target.value);
-    document.getElementById('constructionAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const growthTarget = document.getElementById('growthTarget');
+    if (growthTarget) {
+        growthTarget.addEventListener('change', (e) => {
+            currentGrowthTarget = e.target.value;
+            // Would need to load different predictions for different targets
+            updateMap();
+        });
+    }
+    const zoningFilter = document.getElementById('zoningFilter');
+    if (zoningFilter) {
+        zoningFilter.addEventListener('change', () => {
+            updateTopK();
+        });
+    }
 
-document.getElementById('zoningSlider').addEventListener('input', (e) => {
-    scenarioAdjustments.zoning = parseFloat(e.target.value);
-    document.getElementById('zoningAdj').textContent = e.target.value + '%';
-    updateMap();
-});
+    const closePanel = document.getElementById('closePanel');
+    if (closePanel) {
+        closePanel.addEventListener('click', () => {
+            const infoPanel = document.getElementById('infoPanel');
+            if (infoPanel) infoPanel.classList.add('hidden');
+        });
+    }
 
-document.getElementById('resetScenario').addEventListener('click', () => {
-    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-    document.getElementById('permitsSlider').value = 0;
-    document.getElementById('constructionSlider').value = 0;
-    document.getElementById('zoningSlider').value = 0;
-    document.getElementById('permitsAdj').textContent = '0%';
-    document.getElementById('constructionAdj').textContent = '0%';
-    document.getElementById('zoningAdj').textContent = '0%';
-    updateMap();
-});
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', () => {
+            loadData();
+            loadModelCard();
+        });
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active from siblings
+            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Update content based on tab
+            if (btn.parentElement.classList.contains('top-k-tabs')) {
+                updateTopK();
+            } else if (btn.parentElement.classList.contains('eval-tabs')) {
+                updateEvaluation(btn.dataset.tab);
+            }
+        });
+    });
+
+    // Scenario mode
+    const scenarioMode = document.getElementById('scenarioMode');
+    if (scenarioMode) {
+        scenarioMode.addEventListener('change', (e) => {
+            const sliders = document.getElementById('scenarioSliders');
+            if (sliders) {
+                if (e.target.checked) {
+                    sliders.classList.remove('hidden');
+                } else {
+                    sliders.classList.add('hidden');
+                    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+                    updateMap();
+                }
+            }
+        });
+    }
+
+    const permitsSlider = document.getElementById('permitsSlider');
+    if (permitsSlider) {
+        permitsSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.permits = parseFloat(e.target.value);
+            const adjEl = document.getElementById('permitsAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const constructionSlider = document.getElementById('constructionSlider');
+    if (constructionSlider) {
+        constructionSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.construction = parseFloat(e.target.value);
+            const adjEl = document.getElementById('constructionAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const zoningSlider = document.getElementById('zoningSlider');
+    if (zoningSlider) {
+        zoningSlider.addEventListener('input', (e) => {
+            scenarioAdjustments.zoning = parseFloat(e.target.value);
+            const adjEl = document.getElementById('zoningAdj');
+            if (adjEl) adjEl.textContent = e.target.value + '%';
+            updateMap();
+        });
+    }
+
+    const resetScenario = document.getElementById('resetScenario');
+    if (resetScenario) {
+        resetScenario.addEventListener('click', () => {
+            scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+            const permitsSlider = document.getElementById('permitsSlider');
+            const constructionSlider = document.getElementById('constructionSlider');
+            const zoningSlider = document.getElementById('zoningSlider');
+            const permitsAdj = document.getElementById('permitsAdj');
+            const constructionAdj = document.getElementById('constructionAdj');
+            const zoningAdj = document.getElementById('zoningAdj');
+            if (permitsSlider) permitsSlider.value = 0;
+            if (constructionSlider) constructionSlider.value = 0;
+            if (zoningSlider) zoningSlider.value = 0;
+            if (permitsAdj) permitsAdj.textContent = '0%';
+            if (constructionAdj) constructionAdj.textContent = '0%';
+            if (zoningAdj) zoningAdj.textContent = '0%';
+            updateMap();
+        });
+    }
+}
 
 // Search functionality
 let allNeighborhoods = [];
@@ -757,7 +841,28 @@ function updateEvaluation(tab) {
     }
 }
 
-// Initialize
-initMap();
-loadModelCard();
-loadData();
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing...');
+        try {
+            setupEventListeners();
+            initMap();
+            loadModelCard();
+            loadData();
+        } catch (error) {
+            console.error('Initialization error:', error);
+        }
+    });
+} else {
+    // DOM already loaded
+    console.log('DOM already loaded, initializing...');
+    try {
+        setupEventListeners();
+        initMap();
+        loadModelCard();
+        loadData();
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
+}
