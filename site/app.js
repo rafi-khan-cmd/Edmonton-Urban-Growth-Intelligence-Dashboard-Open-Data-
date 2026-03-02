@@ -12,22 +12,13 @@ let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
 
 // Initialize
 function initMap() {
-    try {
-        const mapElement = document.getElementById('map');
-        if (!mapElement) {
-            console.error('Map element not found!');
-            return;
-        }
-        map = L.map('map').setView([53.5461, -113.4938], 11);
-        // Use light theme map tiles (white/grey background)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-        console.log('Map initialized successfully');
-    } catch (error) {
-        console.error('Error initializing map:', error);
-    }
+    map = L.map('map').setView([53.5461, -113.4938], 11);
+    // Use dark theme map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
 }
 
 // Load Model Card
@@ -40,29 +31,31 @@ async function loadModelCard() {
         }
         modelCard = await response.json();
         
-        // Update Model Card UI
+        // Update Model Card UI - check elements exist first
         if (modelCard.metrics && modelCard.metrics.test) {
-            document.getElementById('metricMae').textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
-            document.getElementById('metricRmse').textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
-            document.getElementById('metricTopK').textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
+            const maeEl = document.getElementById('metricMae');
+            const rmseEl = document.getElementById('metricRmse');
+            const topKEl = document.getElementById('metricTopK');
+            if (maeEl) maeEl.textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
+            if (rmseEl) rmseEl.textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
+            if (topKEl) topKEl.textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
         }
         if (modelCard.train_test_split) {
-            document.getElementById('trainYears').textContent = modelCard.train_test_split.train_years || '-';
-            document.getElementById('testYears').textContent = modelCard.train_test_split.test_years || '-';
+            const trainEl = document.getElementById('trainYears');
+            const testEl = document.getElementById('testYears');
+            if (trainEl) trainEl.textContent = modelCard.train_test_split.train_years || '-';
+            if (testEl) testEl.textContent = modelCard.train_test_split.test_years || '-';
         }
         if (modelCard.data_ranges) {
-            document.getElementById('numNeighbourhoods').textContent = modelCard.data_ranges.neighbourhoods || '-';
+            const neighEl = document.getElementById('numNeighbourhoods');
+            if (neighEl) neighEl.textContent = modelCard.data_ranges.neighbourhoods || '-';
         }
-        document.getElementById('dataFreshness').textContent = modelCard.data_freshness ? 
+        const freshEl = document.getElementById('dataFreshness');
+        if (freshEl) freshEl.textContent = modelCard.data_freshness ? 
             `City of Edmonton Open Data (${modelCard.data_freshness})` : 'City of Edmonton Open Data';
-        document.getElementById('lastUpdated').textContent = modelCard.last_updated ? 
-            new Date(modelCard.last_updated).toLocaleString('en-US', { 
-                month: 'short', 
-                day: 'numeric', 
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }) : '-';
+        const updatedEl = document.getElementById('lastUpdated');
+        if (updatedEl) updatedEl.textContent = modelCard.last_updated ? 
+            new Date(modelCard.last_updated).toLocaleString() : '-';
     } catch (error) {
         console.error('Error loading model card:', error);
     }
@@ -72,10 +65,11 @@ async function loadModelCard() {
 async function loadData() {
     try {
         // Show loading state
-        document.getElementById('topKContent').innerHTML = '<div class="loading">Loading predictions...</div>';
+        const topKContent = document.getElementById('topKContent');
+        if (topKContent) topKContent.innerHTML = '<div class="loading">Loading predictions...</div>';
         
         // Load predictions
-        const predictionsResponse = await fetch('assets/predictions.geojson?v=' + Date.now());
+        const predictionsResponse = await fetch('assets/predictions.geojson');
         if (!predictionsResponse.ok) {
             throw new Error('Failed to load predictions.geojson');
         }
@@ -91,7 +85,7 @@ async function loadData() {
         });
         
         // Load timeseries
-        const timeseriesResponse = await fetch('assets/timeseries.csv?v=' + Date.now());
+        const timeseriesResponse = await fetch('assets/timeseries.csv');
         if (!timeseriesResponse.ok) {
             console.warn('Timeseries not found, continuing without it');
             timeseriesData = {};
@@ -140,10 +134,6 @@ async function loadData() {
         const topKContent = document.getElementById('topKContent');
         if (topKContent) {
             topKContent.innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
-        }
-        // Still try to show map even if data fails
-        if (map) {
-            console.log('Map initialized but data failed to load');
         }
     }
 }
@@ -767,24 +757,7 @@ function updateEvaluation(tab) {
     }
 }
 
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        try {
-            initMap();
-            loadModelCard();
-            loadData();
-        } catch (error) {
-            console.error('Initialization error:', error);
-        }
-    });
-} else {
-    // DOM already loaded
-    try {
-        initMap();
-        loadModelCard();
-        loadData();
-    } catch (error) {
-        console.error('Initialization error:', error);
-    }
-}
+// Initialize
+initMap();
+loadModelCard();
+loadData();
