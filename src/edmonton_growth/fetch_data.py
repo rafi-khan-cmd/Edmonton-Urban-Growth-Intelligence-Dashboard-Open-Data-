@@ -52,7 +52,8 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
             headers = {
                 'User-Agent': 'Edmonton-Growth-Dashboard/1.0'
             }
-            response = requests.get(url, params=params, headers=headers, timeout=120)
+            timeout_seconds = 300 if format_type == "geojson" else 120
+            response = requests.get(url, params=params, headers=headers, timeout=timeout_seconds)
             if response.status_code == 403 and params:
                 logger.warning("Got 403, trying without params...")
                 response = requests.get(url, headers=headers, timeout=120)
@@ -232,15 +233,18 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         headers = {
             'User-Agent': 'Edmonton-Growth-Dashboard/1.0 (https://github.com/rafi-khan-cmd/Edmonton-Urban-Growth-Intelligence-Dashboard-Open-Data-)'
         }
-        response = requests.get(url, params=params, headers=headers, timeout=120)
+        response = requests.get(url, params=params, headers=headers, timeout=300)  # Increased timeout for large GeoJSON
         logger.info(f"Response status: {response.status_code}")
         if response.status_code != 200:
             logger.error(f"API returned status {response.status_code}: {response.text[:500]}")
             # If 403, try without query params (some endpoints don't support them)
             if response.status_code == 403 and params:
                 logger.warning("Got 403, trying without query parameters...")
-                response = requests.get(url, headers=headers, timeout=120)
+                response = requests.get(url, headers=headers, timeout=300)
                 logger.info(f"Retry response status: {response.status_code}")
+                if response.status_code != 200:
+                    logger.error(f"Retry also failed: {response.text[:500]}")
+                    return False
         response.raise_for_status()
         
         # Check if we hit the limit and need pagination
@@ -273,21 +277,67 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         
         # Handle GeoJSON directly
         if format_type == "geojson":
-            with open(output_path, 'wb') as f:
-                f.write(response.content)
-            # Verify it's valid GeoJSON and count features
-            gdf = gpd.read_file(output_path)
-            fetched_count = len(gdf)
-            logger.info(f"Saved GeoJSON with {fetched_count} records to {output_path}")
-            
-            # Check if we need pagination
-            if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
-                logger.info("Dataset may have more records, using pagination...")
-                return fetch_with_pagination(
-                    resource_id, output_path, api_version, base_url,
-                    format_type, where_clause, select_cols, page_size=params["$limit"]
-                )
-            return True
+            try:
+                logger.info(f"Saving GeoJSON response ({len(response.content)} bytes) to {output_path}")
+                with open(output_path, 'wb') as f:
+                    f.write(response.content)
+                logger.info(f"File saved, attempting to parse...")
+                
+                # Verify it's valid GeoJSON and count features
+                try:
+                    gdf = gpd.read_file(output_path)
+                    fetched_count = len(gdf)
+                    logger.info(f"✅ Successfully parsed GeoJSON with {fetched_count} records")
+                except Exception as geojson_error:
+                    logger.error(f"Failed to parse GeoJSON with geopandas: {geojson_error}")
+                    import traceback
+                    logger.error(f"GeoJSON parse traceback: {traceback.format_exc()}")
+                    
+                    # Try to read as JSON to see what we got
+                    import json
+                    try:
+                        with open(output_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        if isinstance(data, dict) and "features" in data:
+                            fetched_count = len(data["features"])
+                            logger.info(f"GeoJSON has {fetched_count} features (parsed as JSON dict)")
+                            # File is valid JSON, just geopandas couldn't parse it - still success
+                        elif isinstance(data, list):
+                            fetched_count = len(data)
+                            logger.info(f"GeoJSON is a list with {fetched_count} items")
+                        else:
+                            logger.error(f"Unexpected GeoJSON structure: {type(data)}, keys: {list(data.keys()) if isinstance(data, dict) else 'N/A'}")
+                            # Try CSV fallback for zoning
+                            if resource_id == "67p2-r285":
+                                logger.warning("Trying CSV format as fallback for zoning...")
+                                csv_url = url.replace('.geojson', '.csv')
+                                csv_path = output_path.with_suffix('.csv')
+                                csv_response = requests.get(csv_url, params=params, headers=headers, timeout=300)
+                                if csv_response.status_code == 200:
+                                    with open(csv_path, 'wb') as f:
+                                        f.write(csv_response.content)
+                                    logger.info(f"Saved CSV fallback to {csv_path}")
+                                    return True
+                            return False
+                    except Exception as json_error:
+                        logger.error(f"Failed to parse as JSON: {json_error}")
+                        import traceback
+                        logger.error(f"JSON parse traceback: {traceback.format_exc()}")
+                        return False
+                
+                # Check if we need pagination
+                if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
+                    logger.info("Dataset may have more records, using pagination...")
+                    return fetch_with_pagination(
+                        resource_id, output_path, api_version, base_url,
+                        format_type, where_clause, select_cols, page_size=params["$limit"]
+                    )
+                return True
+            except Exception as e:
+                logger.error(f"Error saving GeoJSON: {e}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
+                return False
         
         # Handle JSON
         data = response.json()
@@ -406,8 +456,14 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         logger.info(f"Saved {len(df)} records to {output_path}")
         return True
         
+    except requests.exceptions.Timeout as e:
+        logger.error(f"⏱️ TIMEOUT fetching {resource_id}")
+        logger.error(f"URL was: {url}")
+        logger.error(f"Params were: {params}")
+        logger.error(f"This dataset may be too large. Try reducing limit or using CSV format.")
+        return False
     except requests.exceptions.RequestException as e:
-        logger.error(f"Error fetching {resource_id}: {e}")
+        logger.error(f"❌ Error fetching {resource_id}: {e}")
         logger.error(f"URL was: {url}")
         logger.error(f"Params were: {params}")
         if hasattr(e, 'response') and e.response is not None:
@@ -415,7 +471,7 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
             logger.error(f"Response text: {e.response.text[:500]}")
         return False
     except Exception as e:
-        logger.error(f"Error processing {resource_id}: {e}")
+        logger.error(f"❌ Error processing {resource_id}: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
@@ -470,11 +526,35 @@ def fetch_all_datasets():
             use_pagination=use_pagination
         )
         
+        # If GeoJSON failed for zoning, try CSV as fallback
+        if not success and dataset_name == "zoning" and format_type == "geojson":
+            logger.warning(f"GeoJSON fetch failed for {dataset_name}, trying CSV fallback...")
+            csv_output = output_path.with_suffix('.csv')
+            csv_success = fetch_socrata_data(
+                resource_id=resource_id,
+                output_path=csv_output,
+                api_version=api_version,
+                format_type="csv",
+                limit=limit,
+                where_clause=where_clause,
+                select_cols=select_cols,
+                use_pagination=use_pagination
+            )
+            if csv_success:
+                logger.info(f"✅ CSV fallback succeeded for {dataset_name}")
+                success = True
+                # Update the config to use CSV
+                datasets_config[dataset_name]["file"] = csv_output.name
+        
         results[dataset_name] = success
         if not success:
-            logger.error(f"Failed to fetch {dataset_name} from API")
+            logger.error(f"❌ Failed to fetch {dataset_name} from API")
+            logger.error(f"   Resource ID: {resource_id}")
+            logger.error(f"   Format: {format_type}")
+            logger.error(f"   Limit: {limit}")
+            logger.error(f"   Use pagination: {use_pagination}")
         else:
-            logger.info(f"Successfully fetched {dataset_name}")
+            logger.info(f"✅ Successfully fetched {dataset_name}")
     
     # Check if we got at least the required files
     required_files = ["neighbourhoods", "business_licences", "zoning"]
