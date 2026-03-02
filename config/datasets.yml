@@ -8,13 +8,13 @@ neighbourhoods:
 business_licences:
   file: "business_licences.csv"
   date_col: "issue_date"
-  date_col_alt: ["ISSUE_DATE", "issued_date", "date"]
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE", "licence_issue_date", "LICENCE_ISSUE_DATE", "issued", "ISSUED"]
   status_col: "status"
-  status_col_alt: ["STATUS", "licence_status"]
+  status_col_alt: ["STATUS", "licence_status", "licence_status_description", "STATUS_DESCRIPTION", "current_status"]
   lat_col: "latitude"
-  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lat_col_alt: ["LATITUDE", "lat", "y", "LAT", "location_latitude", "LOCATION_LATITUDE"]
   lon_col: "longitude"
-  lon_col_alt: ["LONGITUDE", "lon", "x"]
+  lon_col_alt: ["LONGITUDE", "lon", "x", "LON", "location_longitude", "LOCATION_LONGITUDE"]
 
 development_permits:
   file: "development_permits.csv"

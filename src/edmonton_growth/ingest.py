@@ -59,16 +59,38 @@ def load_business_licences():
     if df is None:
         raise FileNotFoundError(f"Could not find {config['file']}")
     
-    # Map columns
+    # Map columns - try multiple common date column names
+    logger.info(f"Business licences columns: {list(df.columns)}")
+    
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        raise ValueError("Could not find date column in business_licences")
+        # Try common alternative names
+        for alt in ["issue_date", "ISSUE_DATE", "issued_date", "date", "DATE", "issue_dt", "licence_date", "LICENCE_DATE", "licence_issue_date", "LICENCE_ISSUE_DATE", "issued", "ISSUED"]:
+            if alt in df.columns:
+                date_col = alt
+                logger.info(f"Found date column: {date_col}")
+                break
+    if not date_col:
+        raise ValueError(f"Could not find date column in business_licences. Available columns: {list(df.columns)}")
     
     lat_col = find_column(df, config["lat_col"], config.get("lat_col_alt", []))
+    if not lat_col:
+        for alt in ["latitude", "LATITUDE", "lat", "LAT", "y", "location_latitude", "LOCATION_LATITUDE"]:
+            if alt in df.columns:
+                lat_col = alt
+                logger.info(f"Found latitude column: {lat_col}")
+                break
+    
     lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
+    if not lon_col:
+        for alt in ["longitude", "LONGITUDE", "lon", "LON", "x", "location_longitude", "LOCATION_LONGITUDE"]:
+            if alt in df.columns:
+                lon_col = alt
+                logger.info(f"Found longitude column: {lon_col}")
+                break
     
     if not lat_col or not lon_col:
-        raise ValueError("Could not find lat/lon columns in business_licences")
+        raise ValueError(f"Could not find lat/lon columns in business_licences. Available columns: {list(df.columns)}")
     
     # Create geometry
     from shapely.geometry import Point
@@ -103,14 +125,16 @@ def load_development_permits():
     
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        logger.warning("Could not find date column in development_permits")
+        date_col = find_column(df, "issue_date", ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE"])
+    if not date_col:
+        logger.warning(f"Could not find date column in development_permits. Available: {list(df.columns)}")
         return gpd.GeoDataFrame()
     
     lat_col = find_column(df, config["lat_col"], config.get("lat_col_alt", []))
     lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
     
     if not lat_col or not lon_col:
-        logger.warning("Could not find lat/lon columns in development_permits")
+        logger.warning(f"Could not find lat/lon columns in development_permits. Available: {list(df.columns)}")
         return gpd.GeoDataFrame()
     
     from shapely.geometry import Point
@@ -141,14 +165,16 @@ def load_building_permits():
     
     date_col = find_column(df, config["date_col"], config.get("date_col_alt", []))
     if not date_col:
-        logger.warning("Could not find date column in building_permits")
+        date_col = find_column(df, "issue_date", ["ISSUE_DATE", "issued_date", "date", "DATE", "permit_date", "PERMIT_DATE"])
+    if not date_col:
+        logger.warning(f"Could not find date column in building_permits. Available: {list(df.columns)}")
         return gpd.GeoDataFrame()
     
     lat_col = find_column(df, config["lat_col"], config.get("lat_col_alt", []))
     lon_col = find_column(df, config["lon_col"], config.get("lon_col_alt", []))
     
     if not lat_col or not lon_col:
-        logger.warning("Could not find lat/lon columns in building_permits")
+        logger.warning(f"Could not find lat/lon columns in building_permits. Available: {list(df.columns)}")
         return gpd.GeoDataFrame()
     
     from shapely.geometry import Point
