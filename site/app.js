@@ -32,14 +32,28 @@ async function loadModelCard() {
         modelCard = await response.json();
         
         // Update Model Card UI
-        document.getElementById('metricMae').textContent = modelCard.metrics.test.mae.toFixed(2);
-        document.getElementById('metricRmse').textContent = modelCard.metrics.test.rmse.toFixed(2);
-        document.getElementById('metricTopK').textContent = (modelCard.metrics.test.top_k_overlap * 100).toFixed(1) + '%';
-        document.getElementById('trainYears').textContent = modelCard.train_test_split.train_years;
-        document.getElementById('testYears').textContent = modelCard.train_test_split.test_years;
-        document.getElementById('numNeighbourhoods').textContent = modelCard.data_ranges.neighbourhoods;
-        document.getElementById('dataFreshness').textContent = `Built from snapshots dated: ${modelCard.data_freshness}`;
-        document.getElementById('lastUpdated').textContent = new Date(modelCard.last_updated).toLocaleString();
+        if (modelCard.metrics && modelCard.metrics.test) {
+            document.getElementById('metricMae').textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
+            document.getElementById('metricRmse').textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
+            document.getElementById('metricTopK').textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
+        }
+        if (modelCard.train_test_split) {
+            document.getElementById('trainYears').textContent = modelCard.train_test_split.train_years || '-';
+            document.getElementById('testYears').textContent = modelCard.train_test_split.test_years || '-';
+        }
+        if (modelCard.data_ranges) {
+            document.getElementById('numNeighbourhoods').textContent = modelCard.data_ranges.neighbourhoods || '-';
+        }
+        document.getElementById('dataFreshness').textContent = modelCard.data_freshness ? 
+            `City of Edmonton Open Data (${modelCard.data_freshness})` : 'City of Edmonton Open Data';
+        document.getElementById('lastUpdated').textContent = modelCard.last_updated ? 
+            new Date(modelCard.last_updated).toLocaleString('en-US', { 
+                month: 'short', 
+                day: 'numeric', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) : '-';
     } catch (error) {
         console.error('Error loading model card:', error);
     }

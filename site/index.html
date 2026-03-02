@@ -14,47 +14,63 @@
     <!-- Model Card Panel (Always Visible) -->
     <div id="modelCard" class="model-card">
         <div class="model-card-content">
-            <div class="model-card-section">
-                <h3>Model Performance</h3>
-                <div class="metrics-grid">
-                    <div class="metric">
-                        <span class="metric-label">MAE (Test)</span>
-                        <span class="metric-value" id="metricMae">-</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">RMSE (Test)</span>
-                        <span class="metric-value" id="metricRmse">-</span>
-                    </div>
-                    <div class="metric">
-                        <span class="metric-label">Top-20 Overlap</span>
-                        <span class="metric-value" id="metricTopK">-</span>
+            <div class="model-card-header">
+                <div class="header-left">
+                    <h2>Edmonton Urban Growth Intelligence</h2>
+                    <span class="subtitle-text">Predictive Analytics Dashboard</span>
+                </div>
+                <div class="header-right">
+                    <div class="status-indicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Live</span>
                     </div>
                 </div>
             </div>
-            <div class="model-card-section">
-                <h3>Data Coverage</h3>
-                <div class="metrics-grid">
-                    <div class="metric">
-                        <span class="metric-label">Train Years</span>
+            <div class="model-card-metrics">
+                <div class="metric-row">
+                    <div class="metric-item">
+                        <span class="metric-label">MAE</span>
+                        <span class="metric-value" id="metricMae">-</span>
+                        <span class="metric-unit">licences</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <span class="metric-label">RMSE</span>
+                        <span class="metric-value" id="metricRmse">-</span>
+                        <span class="metric-unit">licences</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <span class="metric-label">Top-20 Accuracy</span>
+                        <span class="metric-value" id="metricTopK">-</span>
+                        <span class="metric-unit">%</span>
+                    </div>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <span class="metric-label">Training Period</span>
                         <span class="metric-value" id="trainYears">-</span>
                     </div>
-                    <div class="metric">
-                        <span class="metric-label">Test Years</span>
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
+                        <span class="metric-label">Test Period</span>
                         <span class="metric-value" id="testYears">-</span>
                     </div>
-                    <div class="metric">
+                    <div class="metric-divider"></div>
+                    <div class="metric-item">
                         <span class="metric-label">Neighbourhoods</span>
                         <span class="metric-value" id="numNeighbourhoods">-</span>
                     </div>
                 </div>
-            </div>
-            <div class="model-card-section">
-                <div class="data-freshness">
-                    <span class="badge">Data Freshness</span>
-                    <span id="dataFreshness">Loading...</span>
-                </div>
-                <div class="last-updated">
-                    <small>Last Updated: <span id="lastUpdated">-</span></small>
+                <div class="model-card-footer">
+                    <div class="footer-item">
+                        <span class="footer-label">Data Source:</span>
+                        <span class="footer-value" id="dataFreshness">City of Edmonton Open Data</span>
+                    </div>
+                    <div class="footer-divider">•</div>
+                    <div class="footer-item">
+                        <span class="footer-label">Last Updated:</span>
+                        <span class="footer-value" id="lastUpdated">-</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -62,8 +78,12 @@
 
     <div class="container">
         <header>
-            <h1>Edmonton Urban Growth Intelligence Dashboard</h1>
-            <p class="subtitle">Predicting Commercial & Development Growth by Neighbourhood</p>
+            <div class="header-content">
+                <div>
+                    <h1>Neighbourhood Growth Analysis</h1>
+                    <p class="subtitle">Commercial & Development Intelligence Platform</p>
+                </div>
+            </div>
         </header>
         
         <div class="controls">
