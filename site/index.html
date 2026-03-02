@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edmonton Urban Growth Intelligence Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Edmonton Urban Growth Intelligence Dashboard</h1>
+            <p class="subtitle">Predicting Commercial Growth by Neighbourhood</p>
+        </header>
+        
+        <div class="controls">
+            <label for="yearSelect">Select Year:</label>
+            <select id="yearSelect"></select>
+            <button id="refreshBtn">Refresh Data</button>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>Top 10 Neighbourhoods</h2>
+                <div id="topNeighbourhoods"></div>
+                
+                <div class="methodology">
+                    <h3>Methodology</h3>
+                    <p><strong>Growth Definition:</strong> Predicted number of new business licences in year (t+1) based on features from year t.</p>
+                    <p><strong>Features:</strong> Business activity, development permits, building permits, zoning capacity, and vibrancy indicators.</p>
+                    <p><strong>Model:</strong> Gradient Boosting (LightGBM) with time-based train/test split.</p>
+                    <p><strong>Validation:</strong> Trained on earlier years, tested on most recent 1-2 years.</p>
+                    <p><strong>Limitations:</strong> This is a proxy measure. Actual growth depends on many factors not captured in open data.</p>
+                </div>
+            </div>
+            
+            <div class="map-container">
+                <div id="map"></div>
+            </div>
+        </div>
+        
+        <div id="infoPanel" class="info-panel hidden">
+            <button id="closePanel" class="close-btn">×</button>
+            <h2 id="panelTitle"></h2>
+            <div id="panelContent"></div>
+            <canvas id="chartCanvas"></canvas>
+        </div>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+# City of Edmonton Open Data API Endpoints
+# Copy this file to api_endpoints.yml and fill in the resource IDs
+# Find resource IDs at: https://data.edmonton.ca
+
+# API Version: "soda2" (default) or "soda3"
+# SODA2 format: https://data.edmonton.ca/resource/{resource_id}.{format}
+# SODA3 format: https://data.edmonton.ca/api/v3/views/{resource_id}/query.{format}
+
+# Format options: "csv" (fastest), "json", "geojson", or "auto" (detect from output_file extension)
+#
+# API Limits:
+# - Default limit: 1,000 rows per request
+# - SODA 2.0 max: 50,000 rows per request
+# - SODA 2.1: No limit
+# - Use $offset for pagination (automatic if use_pagination: true)
+
+neighbourhoods:
+  resource_id: "65fr-66s6"  # City of Edmonton Neighbourhood Boundaries
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "geojson"  # or "csv", "json", "auto"
+  output_file: "neighbourhoods.geojson"
+  # Optional: limit: 50000 (SODA2 max) or 1000 (default). Set higher to reduce pagination requests
+  # Optional: use_pagination: true (automatically fetch all records using $offset)
+  # Optional: where: "some_column > '2020-01-01'"
+  # Optional: select: ["col1", "col2"]
+
+business_licences:
+  resource_id: "qhi4-bdpu"  # City of Edmonton Business Licences
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "csv"  # CSV is fastest for large datasets
+  output_file: "business_licences.csv"
+  limit: 50000  # Max per request (reduces number of pagination requests)
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  # Note: Used for active businesses, new businesses, sector density, commercial growth
+
+development_permits:
+  resource_id: "2ccn-pwtu"  # City of Edmonton Development Permits
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "csv"
+  output_file: "development_permits.csv"
+  limit: 50000
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  # Note: Used for construction activity, residential/commercial growth signals
+
+building_permits:
+  resource_id: "24uj-dj8v"  # City of Edmonton General Building Permits
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "csv"
+  output_file: "building_permits.csv"
+  limit: 50000
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  # Note: Used for investment scale, construction value, project intensity
+
+zoning:
+  resource_id: "67p2-r285"  # City of Edmonton Zoning Bylaw Geographical Data
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "geojson"  # Prefer GeoJSON for spatial data, or "csv" if needed
+  output_file: "Zoning_Bylaw_Geographical_Data_20260301.geojson"
+  limit: 50000
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  # Note: Contains geometry_multipolygon, zoning code, description for area-weighted zoning shares
+
+property_assessment:
+  resource_id: "q7d6-ambg"  # City of Edmonton Property Assessment Data (Current Year)
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "csv"
+  output_file: "property_assessment.csv"
+  limit: 50000
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  optional: true  # Additional dataset not in original requirements
+  # Note: Used for wealth proxy, density, property value levels
+
+ped_bike_counts:
+  resource_id: "sw7k-ptx8"  # City of Edmonton Daily Pedestrian & Bike Counts
+  api_version: "soda3"  # Uses /api/v3/views/ format
+  format: "csv"
+  output_file: "ped_bike_counts.csv"
+  limit: 50000
+  use_pagination: true  # Automatically fetch all records using $offset pagination
+  optional: true  # Optional dataset - pipeline will work without it
+  # Note: Used for vibrancy and activity signal

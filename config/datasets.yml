@@ -1,0 +1,61 @@
+neighbourhoods:
+  file: "neighbourhoods.geojson"
+  fallback_file: "neighbourhoods.csv"
+  name_col: "name"
+  name_col_alt: ["neighbourhood_name", "NEIGHBOURHOOD", "NAME"]
+  geometry_col: "geometry"
+
+business_licences:
+  file: "business_licences.csv"
+  date_col: "issue_date"
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date"]
+  status_col: "status"
+  status_col_alt: ["STATUS", "licence_status"]
+  lat_col: "latitude"
+  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lon_col: "longitude"
+  lon_col_alt: ["LONGITUDE", "lon", "x"]
+
+development_permits:
+  file: "development_permits.csv"
+  date_col: "issue_date"
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "permit_date"]
+  type_col: "permit_type"
+  type_col_alt: ["PERMIT_TYPE", "type", "category"]
+  lat_col: "latitude"
+  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lon_col: "longitude"
+  lon_col_alt: ["LONGITUDE", "lon", "x"]
+
+building_permits:
+  file: "building_permits.csv"
+  date_col: "issue_date"
+  date_col_alt: ["ISSUE_DATE", "issued_date", "date", "permit_date"]
+  value_col: "construction_value"
+  value_col_alt: ["CONSTRUCTION_VALUE", "value", "cost", "estimated_value"]
+  lat_col: "latitude"
+  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lon_col: "longitude"
+  lon_col_alt: ["LONGITUDE", "lon", "x"]
+
+zoning:
+  file: "Zoning_Bylaw_Geographical_Data_20260301.geojson"
+  fallback_file: "Zoning_Bylaw_Geographical_Data_20260301.csv"
+  geometry_col: "geometry"
+  geometry_col_alt: ["geometry_multipolygon", "GEOMETRY", "the_geom"]
+  code_col: "zoning_code"
+  code_col_alt: ["ZONING_CODE", "code", "zone_code", "ZONE_CODE"]
+  desc_col: "description"
+  desc_col_alt: ["DESCRIPTION", "desc", "zone_description", "ZONE_DESCRIPTION"]
+
+ped_bike_counts:
+  file: "ped_bike_counts.csv"
+  optional: true
+  date_col: "date"
+  date_col_alt: ["DATE", "count_date", "observation_date"]
+  count_col: "count"
+  count_col_alt: ["COUNT", "total_count", "ped_bike_count"]
+  lat_col: "latitude"
+  lat_col_alt: ["LATITUDE", "lat", "y"]
+  lon_col: "longitude"
+  lon_col_alt: ["LONGITUDE", "lon", "x"]

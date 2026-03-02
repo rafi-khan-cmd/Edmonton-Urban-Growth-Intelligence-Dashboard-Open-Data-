@@ -1,0 +1,26 @@
+model:
+  train_test_split_year: null  # null = use last 2 years for test
+  test_years: 2
+  geographic_holdout: false
+  holdout_fraction: 0.2
+  random_seed: 42
+
+features:
+  min_year: 2015
+  max_year: null  # null = use latest available
+  growth_rate_window: 1  # years to look back for growth rate
+
+zoning:
+  residential_keywords: ["residential", "res", "r1", "r2", "r3", "r4", "r5", "rf", "ra"]
+  commercial_keywords: ["commercial", "comm", "c1", "c2", "cb", "cc", "ch", "cn"]
+  industrial_keywords: ["industrial", "ind", "i1", "i2", "i3", "ib"]
+  future_dev_keywords: ["future", "fd", "future development", "planned"]
+
+evaluation:
+  top_k: 20
+  compute_shap: false  # set to true for local runs, false for CI
+
+export:
+  growth_score_min: 0
+  growth_score_max: 100
+  top_features_count: 5
