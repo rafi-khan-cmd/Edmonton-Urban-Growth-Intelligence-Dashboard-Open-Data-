@@ -49,11 +49,19 @@ jobs:
     - name: Fetch data from APIs
       run: |
         export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}/src"
-        python -m edmonton_growth.fetch_data
+        python -m edmonton_growth.fetch_data 2>&1 | tee fetch_log.txt
+        echo "Fetch step completed with exit code: $?"
       continue-on-error: true
       id: fetch_data
       env:
         PYTHONPATH: ${{ github.workspace }}/src
+    
+    - name: Show fetch logs
+      if: always()
+      run: |
+        echo "=== Fetch Data Logs ==="
+        cat fetch_log.txt || echo "No log file found"
+        echo "=== End Logs ==="
     
     - name: Verify required data files
       run: |

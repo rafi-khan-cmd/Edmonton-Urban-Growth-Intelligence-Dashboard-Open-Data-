@@ -1,6 +1,7 @@
 """Fetch data from City of Edmonton open data APIs (Socrata SODA)."""
 
 import requests
+from requests.compat import urlencode
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
@@ -228,9 +229,16 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         params["$select"] = ",".join(select_cols)
     
     logger.info(f"Fetching {resource_id} from {url} (format: {format_type}, limit: {params.get('$limit')})")
+    if params:
+        logger.info(f"Full URL: {url}?{urlencode(params)}")
+    else:
+        logger.info(f"Full URL: {url}")
     
     try:
         response = requests.get(url, params=params, timeout=120)  # Longer timeout for large datasets
+        logger.info(f"Response status: {response.status_code}")
+        if response.status_code != 200:
+            logger.error(f"API returned status {response.status_code}: {response.text[:500]}")
         response.raise_for_status()
         
         # Check if we hit the limit and need pagination
@@ -382,9 +390,17 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         
     except requests.exceptions.RequestException as e:
         logger.error(f"Error fetching {resource_id}: {e}")
+        logger.error(f"URL was: {url}")
+        logger.error(f"Params were: {params}")
+        if hasattr(e, 'response') and e.response is not None:
+            logger.error(f"Response status: {e.response.status_code}")
+            logger.error(f"Response text: {e.response.text[:500]}")
         return False
     except Exception as e:
         logger.error(f"Error processing {resource_id}: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         return False
 
 
@@ -437,7 +453,24 @@ def fetch_all_datasets():
         )
         
         results[dataset_name] = success
+        if not success:
+            logger.error(f"Failed to fetch {dataset_name} from API")
+        else:
+            logger.info(f"Successfully fetched {dataset_name}")
     
+    # Check if we got at least the required files
+    required_files = ["neighbourhoods", "business_licences", "zoning"]
+    success_count = sum(1 for name in required_files if results.get(name, False))
+    
+    if success_count < len(required_files):
+        logger.error(f"Only {success_count}/{len(required_files)} required datasets fetched successfully")
+        logger.error("Required datasets: neighbourhoods, business_licences, zoning")
+        for name in required_files:
+            if not results.get(name, False):
+                logger.error(f"  - {name}: FAILED")
+        raise RuntimeError(f"Failed to fetch required datasets. Only {success_count}/{len(required_files)} succeeded.")
+    
+    logger.info(f"Successfully fetched {success_count} required datasets")
     return results
 
 
