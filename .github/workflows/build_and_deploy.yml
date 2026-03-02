@@ -29,14 +29,26 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Fetch data from APIs (optional)
+    - name: Install package
       run: |
-        python -m edmonton_growth.fetch_data || echo "API fetch failed or not configured, using local files"
+        pip install -e .
+    
+    - name: Fetch data from APIs
+      run: |
+        export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}/src"
+        python -m edmonton_growth.fetch_data
       continue-on-error: true
+      id: fetch_data
+      env:
+        PYTHONPATH: ${{ github.workspace }}/src
     
     - name: Run pipeline
       run: |
+        export PYTHONPATH="${PYTHONPATH}:${GITHUB_WORKSPACE}/src"
         python -m edmonton_growth.run_all
+      env:
+        PYTHONUNBUFFERED: 1
+        PYTHONPATH: ${{ github.workspace }}/src
     
     - name: Setup Pages
       uses: actions/configure-pages@v4
