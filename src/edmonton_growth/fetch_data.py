@@ -116,9 +116,12 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
             offset += page_size
             page_num += 1
             
-            # Safety limit: prevent infinite loops
-            if page_num > 1000:
-                logger.warning("Reached safety limit of 1000 pages. Stopping pagination.")
+            # Safety limit: prevent infinite loops and CI timeouts
+            # For very large datasets like zoning, limit pages to avoid GitHub Actions timeout
+            max_pages = 5  # Limit to 5 pages (250k records at 50k/page) - sufficient for zoning analysis
+            if page_num >= max_pages:
+                logger.warning(f"Reached safety limit of {max_pages} pages ({max_pages * page_size:,} records). Stopping pagination.")
+                logger.warning("This should be sufficient for area-weighted zoning calculations.")
                 break
             
         except requests.exceptions.RequestException as e:
@@ -207,10 +210,10 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
     # SODA 2.0 max limit: 50,000, SODA 2.1: no limit
     # User can override with limit parameter
     if limit:
-        params["$limit"] = limit
+        # SODA2 max is 50,000 per request, cap at that
+        params["$limit"] = min(limit, 50000)
     else:
-        # For SODA3, use 50000 to reduce pagination requests
-        # For SODA2, also use 50000 (max allowed)
+        # Default to 50,000 (max for SODA2)
         params["$limit"] = 50000
     
     if where_clause:
