@@ -31,17 +31,34 @@ def compute_zoning_shares(zoning_gdf, neighbourhoods_gdf):
     if zoning_gdf.crs != neighbourhoods_gdf.crs:
         zoning_gdf = zoning_gdf.to_crs(neighbourhoods_gdf.crs)
     
+    # Fix invalid geometries
+    logger.info("Fixing invalid geometries in zoning data...")
+    zoning_gdf["geometry"] = zoning_gdf.geometry.buffer(0)  # Fix self-intersections
+    invalid_count = (~zoning_gdf.geometry.is_valid).sum()
+    if invalid_count > 0:
+        logger.warning(f"Found {invalid_count} invalid geometries, attempting to fix...")
+        zoning_gdf.loc[~zoning_gdf.geometry.is_valid, "geometry"] = (
+            zoning_gdf[~zoning_gdf.geometry.is_valid].geometry.buffer(0)
+        )
+    
     # Project to a local CRS for area calculations (meters)
     # Edmonton is in UTM zone 12N
     local_crs = "EPSG:32612"
     zoning_proj = zoning_gdf.to_crs(local_crs)
     neigh_proj = neighbourhoods_gdf.to_crs(local_crs)
     
+    # Fix neighbourhood geometries too
+    neigh_proj["geometry"] = neigh_proj.geometry.buffer(0)
+    
     results = []
     
     for idx, neigh in neigh_proj.iterrows():
         neigh_name = neigh["name"]
         neigh_geom = neigh["geometry"]
+        
+        if not neigh_geom.is_valid:
+            neigh_geom = neigh_geom.buffer(0)
+        
         neigh_area = neigh_geom.area
         
         if neigh_area == 0:
@@ -53,9 +70,24 @@ def compute_zoning_shares(zoning_gdf, neighbourhoods_gdf):
         if len(zoning_in_neigh) == 0:
             continue
         
-        # Compute intersection areas
-        zoning_in_neigh["intersection"] = zoning_in_neigh.geometry.intersection(neigh_geom)
-        zoning_in_neigh["intersection_area"] = zoning_in_neigh["intersection"].area
+        # Compute intersection areas with error handling
+        intersection_areas = []
+        for zidx, zone in zoning_in_neigh.iterrows():
+            try:
+                zone_geom = zone.geometry
+                if not zone_geom.is_valid:
+                    zone_geom = zone_geom.buffer(0)
+                
+                intersection = zone_geom.intersection(neigh_geom)
+                if intersection.is_valid and intersection.area > 0:
+                    intersection_areas.append(intersection.area)
+                else:
+                    intersection_areas.append(0)
+            except Exception as e:
+                logger.warning(f"Error computing intersection for zone {zidx}: {e}")
+                intersection_areas.append(0)
+        
+        zoning_in_neigh["intersection_area"] = intersection_areas
         
         total_intersection = zoning_in_neigh["intersection_area"].sum()
         
