@@ -12,12 +12,22 @@ let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
 
 // Initialize
 function initMap() {
-    map = L.map('map').setView([53.5461, -113.4938], 11);
-    // Use light theme map tiles (white/grey background)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(map);
+    try {
+        const mapElement = document.getElementById('map');
+        if (!mapElement) {
+            console.error('Map element not found!');
+            return;
+        }
+        map = L.map('map').setView([53.5461, -113.4938], 11);
+        // Use light theme map tiles (white/grey background)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        console.log('Map initialized successfully');
+    } catch (error) {
+        console.error('Error initializing map:', error);
+    }
 }
 
 // Load Model Card
@@ -127,7 +137,14 @@ async function loadData() {
         
     } catch (error) {
         console.error('Error loading data:', error);
-        document.getElementById('topKContent').innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
+        const topKContent = document.getElementById('topKContent');
+        if (topKContent) {
+            topKContent.innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
+        }
+        // Still try to show map even if data fails
+        if (map) {
+            console.log('Map initialized but data failed to load');
+        }
     }
 }
 
@@ -610,9 +627,16 @@ function initializeSearch() {
     const searchInput = document.getElementById('neighborhoodSearch');
     const suggestionsDiv = document.getElementById('searchSuggestions');
     
-    if (!searchInput || !suggestionsDiv) return;
+    if (!searchInput || !suggestionsDiv) {
+        console.warn('Search elements not found, skipping search initialization');
+        return;
+    }
     
-    searchInput.addEventListener('input', (e) => {
+    // Remove existing listeners if any
+    const newInput = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newInput, searchInput);
+    
+    newInput.addEventListener('input', (e) => {
         const query = e.target.value.toLowerCase().trim();
         
         clearTimeout(searchTimeout);
@@ -637,7 +661,7 @@ function initializeSearch() {
                 suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const name = item.getAttribute('data-name');
-                        searchInput.value = name;
+                        newInput.value = name;
                         suggestionsDiv.classList.add('hidden');
                         findAndShowNeighborhood(name);
                     });
@@ -648,21 +672,21 @@ function initializeSearch() {
         }, 150);
     });
     
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-            suggestionsDiv.classList.add('hidden');
-        }
-    });
-    
     // Handle Enter key
-    searchInput.addEventListener('keydown', (e) => {
+    newInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
             const query = e.target.value.trim();
             if (query) {
                 findAndShowNeighborhood(query);
                 suggestionsDiv.classList.add('hidden');
             }
+        }
+    });
+    
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!newInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.classList.add('hidden');
         }
     });
 }
@@ -743,7 +767,24 @@ function updateEvaluation(tab) {
     }
 }
 
-// Initialize
-initMap();
-loadModelCard();
-loadData();
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        try {
+            initMap();
+            loadModelCard();
+            loadData();
+        } catch (error) {
+            console.error('Initialization error:', error);
+        }
+    });
+} else {
+    // DOM already loaded
+    try {
+        initMap();
+        loadModelCard();
+        loadData();
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
+}
