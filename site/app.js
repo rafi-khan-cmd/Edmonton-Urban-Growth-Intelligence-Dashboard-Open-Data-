@@ -12,85 +12,34 @@ let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
 
 // Initialize
 function initMap() {
-    try {
-        const mapElement = document.getElementById('map');
-        if (!mapElement) {
-            console.error('Map element not found!');
-            return;
-        }
-        map = L.map('map').setView([53.5461, -113.4938], 11);
-        // Use dark theme map tiles
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors © CARTO',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }).addTo(map);
-        console.log('Map initialized');
-    } catch (error) {
-        console.error('Error initializing map:', error);
-    }
+    map = L.map('map').setView([53.5461, -113.4938], 11);
+    // Use dark theme map tiles
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap contributors © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(map);
 }
 
 // Load Model Card
 async function loadModelCard() {
     try {
-        console.log('Loading model card...');
-        const response = await fetch('assets/model_card.json');
+        const response = await fetch('assets/model_card.json?v=' + Date.now());
         if (!response.ok) {
-            console.warn('Model card not found:', response.status);
+            console.warn('Model card not found, using defaults');
             return;
         }
         modelCard = await response.json();
-        console.log('Model card loaded:', modelCard);
         
-        // Update Model Card UI - check elements exist first
-        if (modelCard.metrics && modelCard.metrics.test) {
-            const maeEl = document.getElementById('metricMae');
-            const rmseEl = document.getElementById('metricRmse');
-            const topKEl = document.getElementById('metricTopK');
-            if (maeEl) {
-                maeEl.textContent = (modelCard.metrics.test.mae || 0).toFixed(2);
-                console.log('Updated MAE:', maeEl.textContent);
-            }
-            if (rmseEl) {
-                rmseEl.textContent = (modelCard.metrics.test.rmse || 0).toFixed(2);
-                console.log('Updated RMSE:', rmseEl.textContent);
-            }
-            if (topKEl) {
-                topKEl.textContent = ((modelCard.metrics.test.top_k_overlap || 0) * 100).toFixed(1);
-                console.log('Updated TopK:', topKEl.textContent);
-            }
-        }
-        if (modelCard.train_test_split) {
-            const trainEl = document.getElementById('trainYears');
-            const testEl = document.getElementById('testYears');
-            if (trainEl) {
-                trainEl.textContent = modelCard.train_test_split.train_years || '-';
-                console.log('Updated train years:', trainEl.textContent);
-            }
-            if (testEl) {
-                testEl.textContent = modelCard.train_test_split.test_years || '-';
-                console.log('Updated test years:', testEl.textContent);
-            }
-        }
-        if (modelCard.data_ranges) {
-            const neighEl = document.getElementById('numNeighbourhoods');
-            if (neighEl) {
-                neighEl.textContent = modelCard.data_ranges.neighbourhoods || '-';
-                console.log('Updated neighbourhoods:', neighEl.textContent);
-            }
-        }
-        const freshEl = document.getElementById('dataFreshness');
-        if (freshEl) {
-            freshEl.textContent = modelCard.data_freshness ? 
-                `City of Edmonton Open Data (${modelCard.data_freshness})` : 'City of Edmonton Open Data';
-        }
-        const updatedEl = document.getElementById('lastUpdated');
-        if (updatedEl) {
-            updatedEl.textContent = modelCard.last_updated ? 
-                new Date(modelCard.last_updated).toLocaleString() : '-';
-        }
-        console.log('Model card UI updated');
+        // Update Model Card UI
+        document.getElementById('metricMae').textContent = modelCard.metrics.test.mae.toFixed(2);
+        document.getElementById('metricRmse').textContent = modelCard.metrics.test.rmse.toFixed(2);
+        document.getElementById('metricTopK').textContent = (modelCard.metrics.test.top_k_overlap * 100).toFixed(1) + '%';
+        document.getElementById('trainYears').textContent = modelCard.train_test_split.train_years;
+        document.getElementById('testYears').textContent = modelCard.train_test_split.test_years;
+        document.getElementById('numNeighbourhoods').textContent = modelCard.data_ranges.neighbourhoods;
+        document.getElementById('dataFreshness').textContent = `Built from snapshots dated: ${modelCard.data_freshness}`;
+        document.getElementById('lastUpdated').textContent = new Date(modelCard.last_updated).toLocaleString();
     } catch (error) {
         console.error('Error loading model card:', error);
     }
@@ -99,19 +48,15 @@ async function loadModelCard() {
 // Load data
 async function loadData() {
     try {
-        console.log('Loading data...');
         // Show loading state
-        const topKContent = document.getElementById('topKContent');
-        if (topKContent) topKContent.innerHTML = '<div class="loading">Loading predictions...</div>';
+        document.getElementById('topKContent').innerHTML = '<div class="loading">Loading predictions...</div>';
         
         // Load predictions
-        console.log('Fetching predictions.geojson...');
-        const predictionsResponse = await fetch('assets/predictions.geojson');
+        const predictionsResponse = await fetch('assets/predictions.geojson?v=' + Date.now());
         if (!predictionsResponse.ok) {
-            throw new Error(`Failed to load predictions.geojson: ${predictionsResponse.status}`);
+            throw new Error('Failed to load predictions.geojson');
         }
         const predictions = await predictionsResponse.json();
-        console.log('Predictions loaded:', predictions.features ? predictions.features.length : 0, 'features');
         
         // Organize by year
         predictions.features.forEach(feature => {
@@ -123,7 +68,7 @@ async function loadData() {
         });
         
         // Load timeseries
-        const timeseriesResponse = await fetch('assets/timeseries.csv');
+        const timeseriesResponse = await fetch('assets/timeseries.csv?v=' + Date.now());
         if (!timeseriesResponse.ok) {
             console.warn('Timeseries not found, continuing without it');
             timeseriesData = {};
@@ -161,18 +106,11 @@ async function loadData() {
             yearSelect.value = currentYear;
             updateMap();
             updateTopK();
-            
-            // Populate search after data loads
-            allNeighborhoods = predictionsData[currentYear].map(f => f.properties.name).sort();
-            initializeSearch();
         }
         
     } catch (error) {
         console.error('Error loading data:', error);
-        const topKContent = document.getElementById('topKContent');
-        if (topKContent) {
-            topKContent.innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
-        }
+        document.getElementById('topKContent').innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
     }
 }
 
@@ -211,14 +149,15 @@ function updateMap() {
             const value = getValue(feature);
             const normalized = (value - minValue) / (maxValue - minValue || 1);
             
-            // Color scale: blue (low) to red (high) - no green
-            // Blue: hsl(240, 70%, 50%) to Red: hsl(0, 70%, 50%)
+            // Modern color scale: purple/blue (low) to pink/red (high)
             const hue = 240 - (normalized * 240); // 240 (blue) to 0 (red)
+            const saturation = 70 + (normalized * 20); // 70% to 90%
+            const lightness = 45 + (normalized * 10); // 45% to 55%
             return {
-                fillColor: `hsl(${hue}, 70%, 50%)`,
-                color: 'rgba(0, 0, 0, 0.2)',
+                fillColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                color: 'rgba(255, 255, 255, 0.3)',
                 weight: 1.5,
-                fillOpacity: 0.75
+                fillOpacity: 0.8
             };
         },
         onEachFeature: function(feature, layer) {
@@ -284,23 +223,13 @@ function applyScenarioAdjustments(features) {
 // Update legend
 function updateLegend(minValue, maxValue) {
     const legend = document.getElementById('legend');
-    let label = '';
-    if (currentViewMode === 'score') {
-        label = 'Growth Score (0-100)';
-    } else if (currentViewMode === 'predicted') {
-        label = 'Predicted New Licences';
-    } else {
-        label = 'Actual New Licences';
-    }
+    const label = currentViewMode === 'score' ? 'Growth Score (0-100)' :
+                 currentViewMode === 'predicted' ? 'Predicted New Licences (count)' :
+                 'Actual New Licences (count)';
     
-    if (legend) {
-        legend.querySelector('h4').textContent = label;
-        const labels = legend.querySelectorAll('.legend-labels span');
-        if (labels.length >= 2) {
-            labels[0].textContent = minValue.toFixed(1);
-            labels[1].textContent = maxValue.toFixed(1);
-        }
-    }
+    legend.querySelector('h4').textContent = label;
+    legend.querySelector('.legend-labels span:first-child').textContent = minValue.toFixed(1);
+    legend.querySelector('.legend-labels span:last-child').textContent = maxValue.toFixed(1);
 }
 
 // Update Top-K lists
@@ -402,92 +331,56 @@ function showInfoPanel(props) {
         .filter(k => k.startsWith(featurePrefix))
         .map(k => ({
             name: k.replace(featurePrefix, '').replace(/_/g, ' '),
-            value: parseFloat(props[k] || 0),
-            key: k
+            value: parseFloat(props[k] || 0)
         }))
         .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
         .slice(0, 5);
     
-    // Format feature names nicely
-    const formatFeatureName = (name) => {
-        return name.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    };
-    
     let html = `
-        <div class="info-section">
-            <h3>Overview</h3>
-            <div class="info-row">
-                <span class="info-label">Year:</span>
-                <span class="info-value">${props.year}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Growth Score:</span>
-                <span class="info-value">${props.growth_score.toFixed(1)} / 100</span>
-                <span class="info-help" title="Normalized score (0-100) representing predicted commercial growth potential">ℹ️</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Predicted New Businesses:</span>
-                <span class="info-value">${props.y_pred.toFixed(1)}</span>
-            </div>
+        <div class="info-row">
+            <span class="info-label">Year:</span>
+            <span class="info-value">${props.year}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Predicted New Businesses:</span>
+            <span class="info-value">${props.y_pred.toFixed(1)}</span>
+        </div>
     `;
     
     if (props.y_true !== null && props.y_true !== undefined) {
-        const error = Math.abs(props.y_pred - props.y_true);
         html += `
             <div class="info-row">
                 <span class="info-label">Actual New Businesses:</span>
                 <span class="info-value">${props.y_true}</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Prediction Error:</span>
-                <span class="info-value">${error.toFixed(1)}</span>
-            </div>
         `;
     }
     
-    html += `</div>`;
+    html += `
+        <div class="info-row">
+            <span class="info-label">Growth Score:</span>
+            <span class="info-value">${props.growth_score.toFixed(1)}</span>
+        </div>
+    `;
     
-    // Add detailed feature values
     if (drivers.length > 0) {
         html += `
-            <div class="info-section">
-                <h3>Key Indicators</h3>
-                <div class="features-grid">
-                    ${drivers.map(d => {
-                        let displayValue = d.value.toFixed(2);
-                        let unit = '';
-                        if (d.key.includes('pct')) {
-                            displayValue = d.value.toFixed(1);
-                            unit = '%';
-                        } else if (d.key.includes('value') || d.key.includes('construction')) {
-                            displayValue = (d.value / 1000000).toFixed(2);
-                            unit = 'M';
-                        } else if (d.key.includes('count') || d.key.includes('businesses') || d.key.includes('permits')) {
-                            displayValue = Math.round(d.value);
-                            unit = '';
-                        }
-                        return `
-                            <div class="feature-item">
-                                <div class="feature-name">${formatFeatureName(d.name)}</div>
-                                <div class="feature-value">${displayValue}${unit}</div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
+            <div class="features-list">
+                <strong>Top Drivers:</strong>
+                <ul>
+                    ${drivers.map(d => `<li>${d.name}: ${d.value.toFixed(2)}</li>`).join('')}
+                </ul>
             </div>
         `;
     }
     
     if (props.top_features && Array.isArray(props.top_features)) {
         html += `
-            <div class="info-section">
-                <h3>Model Features</h3>
-                <div class="features-list">
-                    <p class="info-note">These features are most important for predictions across all neighborhoods:</p>
-                    <ul>
-                        ${props.top_features.map(f => `<li>${formatFeatureName(f)}</li>`).join('')}
-                    </ul>
-                </div>
+            <div class="features-list">
+                <strong>Important Features:</strong>
+                <ul>
+                    ${props.top_features.map(f => `<li>${f.replace(/_/g, ' ')}</li>`).join('')}
+                </ul>
             </div>
         `;
     }
@@ -559,228 +452,93 @@ function showChart(neighbourhoodName) {
     });
 }
 
-// Setup event listeners (called after DOM is ready)
-function setupEventListeners() {
-    const yearSelect = document.getElementById('yearSelect');
-    if (yearSelect) {
-        yearSelect.addEventListener('change', (e) => {
-            currentYear = e.target.value;
-            updateMap();
+// Event listeners
+document.getElementById('yearSelect').addEventListener('change', (e) => {
+    currentYear = e.target.value;
+    updateMap();
+    updateTopK();
+});
+
+document.getElementById('viewMode').addEventListener('change', (e) => {
+    currentViewMode = e.target.value;
+    updateMap();
+});
+
+document.getElementById('growthTarget').addEventListener('change', (e) => {
+    currentGrowthTarget = e.target.value;
+    // Would need to load different predictions for different targets
+    updateMap();
+});
+
+document.getElementById('zoningFilter').addEventListener('change', () => {
+    updateTopK();
+});
+
+document.getElementById('closePanel').addEventListener('click', () => {
+    document.getElementById('infoPanel').classList.add('hidden');
+});
+
+document.getElementById('refreshBtn').addEventListener('click', () => {
+    loadData();
+    loadModelCard();
+});
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        // Remove active from siblings
+        btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update content based on tab
+        if (btn.parentElement.classList.contains('top-k-tabs')) {
             updateTopK();
-        });
-    }
-
-    const viewMode = document.getElementById('viewMode');
-    if (viewMode) {
-        viewMode.addEventListener('change', (e) => {
-            currentViewMode = e.target.value;
-            updateMap();
-        });
-    }
-
-    const growthTarget = document.getElementById('growthTarget');
-    if (growthTarget) {
-        growthTarget.addEventListener('change', (e) => {
-            currentGrowthTarget = e.target.value;
-            // Would need to load different predictions for different targets
-            updateMap();
-        });
-    }
-    const zoningFilter = document.getElementById('zoningFilter');
-    if (zoningFilter) {
-        zoningFilter.addEventListener('change', () => {
-            updateTopK();
-        });
-    }
-
-    const closePanel = document.getElementById('closePanel');
-    if (closePanel) {
-        closePanel.addEventListener('click', () => {
-            const infoPanel = document.getElementById('infoPanel');
-            if (infoPanel) infoPanel.classList.add('hidden');
-        });
-    }
-
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', () => {
-            loadData();
-            loadModelCard();
-        });
-    }
-
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Remove active from siblings
-            btn.parentElement.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Update content based on tab
-            if (btn.parentElement.classList.contains('top-k-tabs')) {
-                updateTopK();
-            } else if (btn.parentElement.classList.contains('eval-tabs')) {
-                updateEvaluation(btn.dataset.tab);
-            }
-        });
-    });
-
-    // Scenario mode
-    const scenarioMode = document.getElementById('scenarioMode');
-    if (scenarioMode) {
-        scenarioMode.addEventListener('change', (e) => {
-            const sliders = document.getElementById('scenarioSliders');
-            if (sliders) {
-                if (e.target.checked) {
-                    sliders.classList.remove('hidden');
-                } else {
-                    sliders.classList.add('hidden');
-                    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-                    updateMap();
-                }
-            }
-        });
-    }
-
-    const permitsSlider = document.getElementById('permitsSlider');
-    if (permitsSlider) {
-        permitsSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.permits = parseFloat(e.target.value);
-            const adjEl = document.getElementById('permitsAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
-            updateMap();
-        });
-    }
-
-    const constructionSlider = document.getElementById('constructionSlider');
-    if (constructionSlider) {
-        constructionSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.construction = parseFloat(e.target.value);
-            const adjEl = document.getElementById('constructionAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
-            updateMap();
-        });
-    }
-
-    const zoningSlider = document.getElementById('zoningSlider');
-    if (zoningSlider) {
-        zoningSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.zoning = parseFloat(e.target.value);
-            const adjEl = document.getElementById('zoningAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
-            updateMap();
-        });
-    }
-
-    const resetScenario = document.getElementById('resetScenario');
-    if (resetScenario) {
-        resetScenario.addEventListener('click', () => {
-            scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
-            const permitsSlider = document.getElementById('permitsSlider');
-            const constructionSlider = document.getElementById('constructionSlider');
-            const zoningSlider = document.getElementById('zoningSlider');
-            const permitsAdj = document.getElementById('permitsAdj');
-            const constructionAdj = document.getElementById('constructionAdj');
-            const zoningAdj = document.getElementById('zoningAdj');
-            if (permitsSlider) permitsSlider.value = 0;
-            if (constructionSlider) constructionSlider.value = 0;
-            if (zoningSlider) zoningSlider.value = 0;
-            if (permitsAdj) permitsAdj.textContent = '0%';
-            if (constructionAdj) constructionAdj.textContent = '0%';
-            if (zoningAdj) zoningAdj.textContent = '0%';
-            updateMap();
-        });
-    }
-}
-
-// Search functionality
-let allNeighborhoods = [];
-let searchTimeout = null;
-
-function initializeSearch() {
-    const searchInput = document.getElementById('neighborhoodSearch');
-    const suggestionsDiv = document.getElementById('searchSuggestions');
-    
-    if (!searchInput || !suggestionsDiv) {
-        console.warn('Search elements not found, skipping search initialization');
-        return;
-    }
-    
-    // Remove existing listeners if any
-    const newInput = searchInput.cloneNode(true);
-    searchInput.parentNode.replaceChild(newInput, searchInput);
-    
-    newInput.addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase().trim();
-        
-        clearTimeout(searchTimeout);
-        
-        if (query.length < 2) {
-            suggestionsDiv.classList.add('hidden');
-            return;
-        }
-        
-        searchTimeout = setTimeout(() => {
-            const matches = allNeighborhoods.filter(n => 
-                n.toLowerCase().includes(query)
-            ).slice(0, 10);
-            
-            if (matches.length > 0) {
-                suggestionsDiv.innerHTML = matches.map(name => `
-                    <div class="suggestion-item" data-name="${name}">${name}</div>
-                `).join('');
-                suggestionsDiv.classList.remove('hidden');
-                
-                // Add click handlers
-                suggestionsDiv.querySelectorAll('.suggestion-item').forEach(item => {
-                    item.addEventListener('click', () => {
-                        const name = item.getAttribute('data-name');
-                        newInput.value = name;
-                        suggestionsDiv.classList.add('hidden');
-                        findAndShowNeighborhood(name);
-                    });
-                });
-            } else {
-                suggestionsDiv.classList.add('hidden');
-            }
-        }, 150);
-    });
-    
-    // Handle Enter key
-    newInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const query = e.target.value.trim();
-            if (query) {
-                findAndShowNeighborhood(query);
-                suggestionsDiv.classList.add('hidden');
-            }
+        } else if (btn.parentElement.classList.contains('eval-tabs')) {
+            updateEvaluation(btn.dataset.tab);
         }
     });
-    
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!newInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
-            suggestionsDiv.classList.add('hidden');
-        }
-    });
-}
+});
 
-function findAndShowNeighborhood(name) {
-    if (!currentYear || !predictionsData[currentYear]) return;
-    
-    const feature = predictionsData[currentYear].find(f => 
-        f.properties.name.toLowerCase() === name.toLowerCase()
-    );
-    
-    if (feature) {
-        showInfoPanel(feature.properties);
-        // Zoom to neighborhood
-        const bounds = L.geoJSON(feature).getBounds();
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+// Scenario mode
+document.getElementById('scenarioMode').addEventListener('change', (e) => {
+    const sliders = document.getElementById('scenarioSliders');
+    if (e.target.checked) {
+        sliders.classList.remove('hidden');
     } else {
-        alert(`Neighborhood "${name}" not found in ${currentYear} data.`);
+        sliders.classList.add('hidden');
+        scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+        updateMap();
     }
-}
+});
+
+document.getElementById('permitsSlider').addEventListener('input', (e) => {
+    scenarioAdjustments.permits = parseFloat(e.target.value);
+    document.getElementById('permitsAdj').textContent = e.target.value + '%';
+    updateMap();
+});
+
+document.getElementById('constructionSlider').addEventListener('input', (e) => {
+    scenarioAdjustments.construction = parseFloat(e.target.value);
+    document.getElementById('constructionAdj').textContent = e.target.value + '%';
+    updateMap();
+});
+
+document.getElementById('zoningSlider').addEventListener('input', (e) => {
+    scenarioAdjustments.zoning = parseFloat(e.target.value);
+    document.getElementById('zoningAdj').textContent = e.target.value + '%';
+    updateMap();
+});
+
+document.getElementById('resetScenario').addEventListener('click', () => {
+    scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+    document.getElementById('permitsSlider').value = 0;
+    document.getElementById('constructionSlider').value = 0;
+    document.getElementById('zoningSlider').value = 0;
+    document.getElementById('permitsAdj').textContent = '0%';
+    document.getElementById('constructionAdj').textContent = '0%';
+    document.getElementById('zoningAdj').textContent = '0%';
+    updateMap();
+});
 
 // Update evaluation section
 function updateEvaluation(tab) {
@@ -790,79 +548,38 @@ function updateEvaluation(tab) {
         container.innerHTML = `
             <div class="eval-section">
                 <h4>Time Split Validation</h4>
-                <p><strong>Train Period:</strong> ${modelCard.train_test_split?.train_years || '-'}</p>
-                <p><strong>Test Period:</strong> ${modelCard.train_test_split?.test_years || '-'}</p>
-                <p><strong>Train Samples:</strong> ${modelCard.data_ranges?.train_samples || '-'}</p>
-                <p><strong>Test Samples:</strong> ${modelCard.data_ranges?.test_samples || '-'}</p>
-                <p class="disclaimer" style="margin-top: 12px;">
-                    Model trained on historical data, tested on most recent years to simulate real-world forecasting.
-                </p>
+                <p><strong>Train:</strong> ${modelCard.train_test_split.train_years}</p>
+                <p><strong>Test:</strong> ${modelCard.train_test_split.test_years}</p>
+                <p><strong>Train Samples:</strong> ${modelCard.data_ranges.train_samples}</p>
+                <p><strong>Test Samples:</strong> ${modelCard.data_ranges.test_samples}</p>
             </div>
             <div class="eval-section">
                 <h4>Geographic Holdout</h4>
-                <p>Geographic cross-validation not implemented in current version. All neighborhoods used in both train and test sets.</p>
+                <p>Not implemented in current version</p>
             </div>
         `;
     } else if (tab === 'errors') {
-        const worstErrors = modelCard.metrics?.test?.worst_errors || [];
-        if (worstErrors.length > 0) {
-            container.innerHTML = `
-                <div class="eval-section">
-                    <h4>Worst Predictions (Top 10 by Error)</h4>
-                    <div class="error-list">
-                        ${worstErrors.map((err, idx) => `
-                            <div class="error-item">
-                                <div class="error-rank">#${idx + 1}</div>
-                                <div class="error-details">
-                                    <div class="error-name">${err.name || 'Unknown'}</div>
-                                    <div class="error-metrics">
-                                        <span>Predicted: ${(err.y_pred || 0).toFixed(1)}</span>
-                                        <span>Actual: ${err.y_true || 0}</span>
-                                        <span class="error-value">Error: ${(err.error || 0).toFixed(1)}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <p class="disclaimer" style="margin-top: 12px;">
-                        <strong>Common Patterns:</strong> High errors often occur in neighborhoods with unusual 
-                        development patterns, data quality issues, or rapid changes not captured by historical trends.
-                    </p>
-                </div>
-            `;
-        } else {
-            container.innerHTML = `
-                <div class="eval-section">
-                    <h4>Error Analysis</h4>
-                    <p class="empty-state">Error analysis data not available. Check model_card.json for worst_errors field.</p>
-                </div>
-            `;
-        }
+        // Would need error data from model_card.json
+        container.innerHTML = `
+            <div class="eval-section">
+                <h4>Error Analysis</h4>
+                <p>Error analysis data would be displayed here.</p>
+                <p class="disclaimer">Note: Explanations indicate correlation, not causation.</p>
+            </div>
+        `;
     }
 }
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('DOM loaded, initializing...');
-        try {
-            setupEventListeners();
-            initMap();
-            loadModelCard();
-            loadData();
-        } catch (error) {
-            console.error('Initialization error:', error);
-        }
-    });
-} else {
-    // DOM already loaded
-    console.log('DOM already loaded, initializing...');
-    try {
-        setupEventListeners();
         initMap();
         loadModelCard();
         loadData();
-    } catch (error) {
-        console.error('Initialization error:', error);
-    }
+    });
+} else {
+    // DOM already loaded
+    initMap();
+    loadModelCard();
+    loadData();
 }
