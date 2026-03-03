@@ -52,11 +52,12 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
             headers = {
                 'User-Agent': 'Edmonton-Growth-Dashboard/1.0'
             }
-            timeout_seconds = 300 if format_type == "geojson" else 120
+            # Increased timeout for large datasets (building permits can take 5+ minutes)
+            timeout_seconds = 300 if format_type == "geojson" else 300
             response = requests.get(url, params=params, headers=headers, timeout=timeout_seconds)
             if response.status_code == 403 and params:
                 logger.warning("Got 403, trying without params...")
-                response = requests.get(url, headers=headers, timeout=120)
+                response = requests.get(url, headers=headers, timeout=300)
             response.raise_for_status()
             
             if format_type == "csv":
