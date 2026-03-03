@@ -33,42 +33,91 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
         how="inner"
     )
     
-    # Normalize to growth_score (0-100)
-    # BETTER APPROACH: Use actual values when available (past years), predictions for future
-    # This makes the score reflect reality for historical data, predictions for future
-    pred_with_geom["value_for_score"] = pred_with_geom.apply(
-        lambda row: row["y_true"] if pd.notna(row["y_true"]) else row["y_pred"],
-        axis=1
+    # Calculate Growth Score based on UPTICK (growth rate/acceleration) rather than absolute values
+    # This focuses on areas experiencing growth acceleration, not just high absolute counts
+    # Merge with full_df to get historical data (growth rates, emergence scores)
+    pred_with_geom = pred_with_geom.merge(
+        full_df[["name", "year", "new_businesses", "business_growth_rate", "emergence_score"]],
+        on=["name", "year"],
+        how="left"
     )
     
-    # Use wider percentile range (1st to 99th) to spread values better and avoid too many 100s
-    min_val = pred_with_geom["value_for_score"].quantile(0.01)  # 1st percentile
-    max_val = pred_with_geom["value_for_score"].quantile(0.99)  # 99th percentile
+    # Calculate uptick score: prioritize growth rate and emergence over absolute values
+    # Strategy: Use emergence_score > business_growth_rate > calculated YoY change > absolute value
+    uptick_scores = []
     
-    # If still too compressed, use min/max but with soft clipping
-    if max_val - min_val < 0.1:  # Very small range, use actual min/max
-        min_val = pred_with_geom["value_for_score"].min()
-        max_val = pred_with_geom["value_for_score"].max()
+    for idx, row in pred_with_geom.iterrows():
+        uptick_score = None
+        
+        # 1. Prefer emergence_score (acceleration - second derivative)
+        if pd.notna(row.get("emergence_score")) and row["emergence_score"] > 0:
+            uptick_score = row["emergence_score"] * 100  # Scale up
+        
+        # 2. Use business_growth_rate (year-over-year percentage change)
+        elif pd.notna(row.get("business_growth_rate")) and row["business_growth_rate"] > 0:
+            uptick_score = row["business_growth_rate"] * 100  # Already a percentage, scale up
+        
+        # 3. Calculate year-over-year change from historical data
+        else:
+            prev_year_data = full_df[
+                (full_df["name"] == row["name"]) & 
+                (full_df["year"] == row["year"] - 1)
+            ]
+            if len(prev_year_data) > 0:
+                prev_new_businesses = prev_year_data["new_businesses"].iloc[0]
+                current_value = row["y_true"] if pd.notna(row["y_true"]) else row["y_pred"]
+                if prev_new_businesses > 0:
+                    growth_rate = (current_value - prev_new_businesses) / prev_new_businesses
+                    uptick_score = max(0, growth_rate) * 100
+        
+        uptick_scores.append(uptick_score)
     
-    if max_val > min_val:
-        # Normalize without hard clipping - let values extend beyond 0-100 naturally
-        # Then soft clip to 0-100 range (only extreme outliers get clipped)
-        normalized = (pred_with_geom["value_for_score"] - min_val) / (max_val - min_val)
-        # Use a sigmoid-like transformation to compress extreme values
-        # This spreads middle values better and prevents too many 100s
-        normalized_smooth = normalized * 0.9 + 0.05  # Scale to 0.05-0.95 range
-        pred_with_geom["growth_score"] = (
-            normalized_smooth * 
-            (params["export"]["growth_score_max"] - params["export"]["growth_score_min"]) +
-            params["export"]["growth_score_min"]
-        )
-        # Only clip extreme outliers (beyond 0-100)
-        pred_with_geom["growth_score"] = pred_with_geom["growth_score"].clip(lower=0, upper=100)
+    pred_with_geom["uptick_score"] = uptick_scores
+    
+    # Use uptick scores when available, fallback to absolute values
+    has_uptick = pd.Series(uptick_scores).notna().any()
+    
+    if has_uptick:
+        # Normalize uptick scores to 0-100
+        uptick_series = pd.Series(uptick_scores).fillna(0)
+        min_uptick = uptick_series.quantile(0.01)
+        max_uptick = uptick_series.quantile(0.99)
+        
+        if max_uptick > min_uptick:
+            normalized_uptick = (uptick_series - min_uptick) / (max_uptick - min_uptick)
+            normalized_uptick = normalized_uptick * 0.9 + 0.05  # Scale to 0.05-0.95
+            pred_with_geom["growth_score"] = (normalized_uptick * 100).clip(lower=0, upper=100)
+        else:
+            # Fallback: use absolute value normalization
+            value_for_score = pred_with_geom.apply(
+                lambda r: r["y_true"] if pd.notna(r["y_true"]) else r["y_pred"],
+                axis=1
+            )
+            min_val = value_for_score.quantile(0.01)
+            max_val = value_for_score.quantile(0.99)
+            if max_val > min_val:
+                normalized = (value_for_score - min_val) / (max_val - min_val)
+                normalized_smooth = normalized * 0.9 + 0.05
+                pred_with_geom["growth_score"] = (normalized_smooth * 100).clip(lower=0, upper=100)
+            else:
+                pred_with_geom["growth_score"] = 50
     else:
-        pred_with_geom["growth_score"] = 50
+        # No uptick data available, use absolute values as fallback
+        value_for_score = pred_with_geom.apply(
+            lambda r: r["y_true"] if pd.notna(r["y_true"]) else r["y_pred"],
+            axis=1
+        )
+        min_val = value_for_score.quantile(0.01)
+        max_val = value_for_score.quantile(0.99)
+        if max_val > min_val:
+            normalized = (value_for_score - min_val) / (max_val - min_val)
+            normalized_smooth = normalized * 0.9 + 0.05
+            pred_with_geom["growth_score"] = (normalized_smooth * 100).clip(lower=0, upper=100)
+        else:
+            pred_with_geom["growth_score"] = 50
     
-    # Drop temporary column
-    pred_with_geom = pred_with_geom.drop(columns=["value_for_score"])
+    # Drop temporary columns
+    pred_with_geom = pred_with_geom.drop(columns=["uptick_score"], errors="ignore")
     
     # Add top features (simplified: use global importance)
     pred_with_geom["top_features"] = pred_with_geom.apply(

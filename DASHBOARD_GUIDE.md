@@ -31,15 +31,20 @@
 ## 🗺️ Map Visualization
 
 ### **Growth Score (0-100)**
-- **What it means**: Normalized prediction score showing relative growth potential
+- **What it means**: Normalized score showing **growth acceleration/uptick** compared to previous years
+- **How it's calculated**: Prioritizes growth rates and acceleration over absolute counts:
+  1. **Emergence Score** (growth acceleration - second derivative) - highest priority
+  2. **Business Growth Rate** (year-over-year percentage change)
+  3. **Calculated YoY Change** (from historical data)
+  4. **Absolute Values** (fallback only)
 - **How to read**: 
-  - **0-20**: Low growth potential
-  - **20-40**: Below average growth
-  - **40-60**: Average growth
-  - **60-80**: Above average growth
-  - **80-100**: High growth potential
+  - **0-20**: Low or negative growth acceleration
+  - **20-40**: Below average growth rate
+  - **40-60**: Average growth rate
+  - **60-80**: Above average growth acceleration
+  - **80-100**: High growth acceleration (emerging areas)
 - **Color coding**: Blue (low) → Purple/Magenta (medium) → Red (high)
-- **Important**: This is a relative score, not an absolute count. A score of 80 doesn't mean 80 businesses, it means high relative growth potential.
+- **Important**: This focuses on **momentum and acceleration**, not absolute counts. A small neighborhood going from 2→10 businesses gets a higher score than a large one going from 100→105, even though the absolute count is lower.
 
 ### **Predicted Count**
 - **What it means**: Actual predicted number of new business licences for next year
