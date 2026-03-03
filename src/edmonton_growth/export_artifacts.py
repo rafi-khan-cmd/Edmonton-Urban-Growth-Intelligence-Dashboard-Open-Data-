@@ -34,16 +34,28 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
     )
     
     # Normalize predictions to growth_score (0-100)
-    # Use percentile-based normalization to avoid extreme outliers
-    min_pred = pred_df["y_pred"].quantile(0.05)  # 5th percentile
-    max_pred = pred_df["y_pred"].quantile(0.95)  # 95th percentile
+    # Use wider percentile range (1st to 99th) to spread values better and avoid too many 100s
+    min_pred = pred_df["y_pred"].quantile(0.01)  # 1st percentile
+    max_pred = pred_df["y_pred"].quantile(0.99)  # 99th percentile
+    
+    # If still too compressed, use min/max but with soft clipping
+    if max_pred - min_pred < 0.1:  # Very small range, use actual min/max
+        min_pred = pred_df["y_pred"].min()
+        max_pred = pred_df["y_pred"].max()
+    
     if max_pred > min_pred:
+        # Normalize without hard clipping - let values extend beyond 0-100 naturally
+        # Then soft clip to 0-100 range (only extreme outliers get clipped)
+        normalized = (pred_with_geom["y_pred"] - min_pred) / (max_pred - min_pred)
+        # Use a sigmoid-like transformation to compress extreme values
+        # This spreads middle values better and prevents too many 100s
+        normalized_smooth = normalized * 0.9 + 0.05  # Scale to 0.05-0.95 range
         pred_with_geom["growth_score"] = (
-            (pred_with_geom["y_pred"].clip(lower=min_pred, upper=max_pred) - min_pred) / (max_pred - min_pred) * 
+            normalized_smooth * 
             (params["export"]["growth_score_max"] - params["export"]["growth_score_min"]) +
             params["export"]["growth_score_min"]
         )
-        # Clip to ensure 0-100 range
+        # Only clip extreme outliers (beyond 0-100)
         pred_with_geom["growth_score"] = pred_with_geom["growth_score"].clip(lower=0, upper=100)
     else:
         pred_with_geom["growth_score"] = 50
