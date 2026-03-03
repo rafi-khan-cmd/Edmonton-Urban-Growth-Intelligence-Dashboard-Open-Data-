@@ -33,20 +33,27 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
         how="inner"
     )
     
-    # Normalize predictions to growth_score (0-100)
+    # Normalize to growth_score (0-100)
+    # BETTER APPROACH: Use actual values when available (past years), predictions for future
+    # This makes the score reflect reality for historical data, predictions for future
+    pred_with_geom["value_for_score"] = pred_with_geom.apply(
+        lambda row: row["y_true"] if pd.notna(row["y_true"]) else row["y_pred"],
+        axis=1
+    )
+    
     # Use wider percentile range (1st to 99th) to spread values better and avoid too many 100s
-    min_pred = pred_df["y_pred"].quantile(0.01)  # 1st percentile
-    max_pred = pred_df["y_pred"].quantile(0.99)  # 99th percentile
+    min_val = pred_with_geom["value_for_score"].quantile(0.01)  # 1st percentile
+    max_val = pred_with_geom["value_for_score"].quantile(0.99)  # 99th percentile
     
     # If still too compressed, use min/max but with soft clipping
-    if max_pred - min_pred < 0.1:  # Very small range, use actual min/max
-        min_pred = pred_df["y_pred"].min()
-        max_pred = pred_df["y_pred"].max()
+    if max_val - min_val < 0.1:  # Very small range, use actual min/max
+        min_val = pred_with_geom["value_for_score"].min()
+        max_val = pred_with_geom["value_for_score"].max()
     
-    if max_pred > min_pred:
+    if max_val > min_val:
         # Normalize without hard clipping - let values extend beyond 0-100 naturally
         # Then soft clip to 0-100 range (only extreme outliers get clipped)
-        normalized = (pred_with_geom["y_pred"] - min_pred) / (max_pred - min_pred)
+        normalized = (pred_with_geom["value_for_score"] - min_val) / (max_val - min_val)
         # Use a sigmoid-like transformation to compress extreme values
         # This spreads middle values better and prevents too many 100s
         normalized_smooth = normalized * 0.9 + 0.05  # Scale to 0.05-0.95 range
@@ -59,6 +66,9 @@ def export_artifacts(neighbourhoods_gdf, full_df, results, metrics):
         pred_with_geom["growth_score"] = pred_with_geom["growth_score"].clip(lower=0, upper=100)
     else:
         pred_with_geom["growth_score"] = 50
+    
+    # Drop temporary column
+    pred_with_geom = pred_with_geom.drop(columns=["value_for_score"])
     
     # Add top features (simplified: use global importance)
     pred_with_geom["top_features"] = pred_with_geom.apply(
