@@ -190,8 +190,9 @@ function updateMap() {
             const value = getValue(feature);
             const normalized = (value - minValue) / (maxValue - minValue || 1);
             
-            // Modern color scale: purple/blue (low) to pink/red (high)
-            const hue = 240 - (normalized * 240); // 240 (blue) to 0 (red)
+            // Color scale: blue (low) to red (high) - avoiding green
+            // Go from 240 (blue) to 360/0 (red) via purple/magenta to skip green
+            const hue = 240 + (normalized * 120); // 240 (blue) to 360 (red, wraps to 0)
             const saturation = 70 + (normalized * 20); // 70% to 90%
             const lightness = 45 + (normalized * 10); // 45% to 55%
             return {
