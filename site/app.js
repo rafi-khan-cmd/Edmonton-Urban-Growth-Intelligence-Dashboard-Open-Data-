@@ -247,15 +247,35 @@ function applyScenarioAdjustments(features) {
             props.feat_total_construction_value *= (1 + scenarioAdjustments.construction / 100);
         }
         
-        // Adjust future dev zoning
-        if (props.feat_zoning_future_dev_pct) {
-            props.feat_zoning_future_dev_pct = Math.max(0, Math.min(100, 
-                props.feat_zoning_future_dev_pct + scenarioAdjustments.zoning));
+        // Adjust future dev zoning (assume it's 0-100 scale, if 0-1 scale adjust accordingly)
+        if (props.feat_zoning_future_dev_pct !== undefined) {
+            const currentZoning = parseFloat(props.feat_zoning_future_dev_pct);
+            // Check if it's 0-1 scale (decimal) or 0-100 scale (percentage)
+            const isDecimal = currentZoning <= 1.0 && currentZoning >= 0;
+            if (isDecimal) {
+                // 0-1 scale: convert percentage change to decimal change
+                props.feat_zoning_future_dev_pct = Math.max(0, Math.min(1, 
+                    currentZoning + (scenarioAdjustments.zoning / 100)));
+            } else {
+                // 0-100 scale: apply percentage change directly
+                props.feat_zoning_future_dev_pct = Math.max(0, Math.min(100, 
+                    currentZoning + scenarioAdjustments.zoning));
+            }
         }
         
         // Recalculate prediction (simplified - would need model in JS for real recalculation)
-        // For now, just adjust growth_score proportionally
-        const adjustment = (scenarioAdjustments.permits + scenarioAdjustments.construction) / 200;
+        // Weight adjustments: permits and construction value are strong signals
+        // Zoning is structural capacity, less immediate impact
+        const permitsWeight = 0.4;
+        const constructionWeight = 0.4;
+        const zoningWeight = 0.2;
+        const adjustment = (
+            (scenarioAdjustments.permits / 100) * permitsWeight +
+            (scenarioAdjustments.construction / 100) * constructionWeight +
+            (scenarioAdjustments.zoning / 100) * zoningWeight
+        );
+        // Adjust both y_pred and growth_score proportionally
+        props.y_pred = Math.max(0, props.y_pred * (1 + adjustment));
         props.growth_score = Math.max(0, Math.min(100, props.growth_score * (1 + adjustment)));
         
         return newFeature;
@@ -299,12 +319,46 @@ function updateTopK() {
         b.properties.y_pred - a.properties.y_pred
     );
     
+    // Calculate "Emerging" - should use growth rate or emergence score, not just growth_score
+    // Use emergence_score if available, otherwise use business_growth_rate, fallback to growth_score
+    const sortedEmerging = [...filtered].map(f => {
+        const emergenceScore = parseFloat(f.properties.emergence_score);
+        const growthRate = parseFloat(f.properties.feat_business_growth_rate);
+        const growthScore = f.properties.growth_score || 0;
+        
+        // Prefer emergence_score if it exists (even if 0 or negative), then growth_rate, then growth_score
+        // Check for existence using !== undefined, not !== 0 (0 is a valid value)
+        let emerging_score;
+        if (f.properties.emergence_score !== undefined && !isNaN(emergenceScore)) {
+            // Emergence score can be negative (declining), but we want positive (emerging)
+            emerging_score = Math.max(0, emergenceScore) * 100; // Scale up and ensure non-negative
+        } else if (f.properties.feat_business_growth_rate !== undefined && !isNaN(growthRate)) {
+            // Growth rate is percentage change, scale appropriately
+            emerging_score = Math.max(0, growthRate) * 100; // Ensure non-negative for "emerging"
+        } else {
+            // Fallback to growth_score
+            emerging_score = growthScore;
+        }
+        
+        return { ...f, emerging_score: emerging_score };
+    }).sort((a, b) => b.emerging_score - a.emerging_score);
+    
     // Calculate under-served (low business density but high predicted growth)
+    // Under-served = high predicted growth BUT low current business density
+    // Score should penalize neighborhoods with high active businesses
     const sortedUnderserved = [...filtered].map(f => {
         const activeBusinesses = parseFloat(f.properties.feat_active_businesses || 0);
         const predicted = f.properties.y_pred;
-        const density = activeBusinesses > 0 ? predicted / activeBusinesses : predicted;
-        return { ...f, underserved_score: density };
+        
+        // Normalize active businesses to 0-1 scale (inverse: low density = high score)
+        const maxActive = Math.max(...filtered.map(f => parseFloat(f.properties.feat_active_businesses || 0)));
+        const normalizedDensity = maxActive > 0 ? 1 - (activeBusinesses / maxActive) : 1;
+        
+        // Under-served score = predicted growth × (1 - normalized density)
+        // This favors: high predicted growth AND low current density
+        const underserved_score = predicted * normalizedDensity;
+        
+        return { ...f, underserved_score: underserved_score };
     }).sort((a, b) => b.underserved_score - a.underserved_score);
     
     // Get active tab
@@ -314,8 +368,8 @@ function updateTopK() {
     let title;
     switch(activeTab) {
         case 'emerging':
-            sorted = sortedByScore;
-            title = 'Top 10 Emerging Neighbourhoods (High Growth Rate)';
+            sorted = sortedEmerging;
+            title = 'Top 10 Emerging Neighbourhoods (High Growth Rate/Emergence)';
             break;
         case 'absolute':
             sorted = sortedByPredicted;
@@ -367,16 +421,33 @@ function showInfoPanel(props) {
     
     title.textContent = props.name;
     
-    // Get top drivers (features with highest values)
-    const featurePrefix = 'feat_';
-    const drivers = Object.keys(props)
-        .filter(k => k.startsWith(featurePrefix))
-        .map(k => ({
-            name: k.replace(featurePrefix, '').replace(/_/g, ' '),
-            value: parseFloat(props[k] || 0)
-        }))
-        .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
-        .slice(0, 5);
+    // Get top drivers - use feature importance from model if available, otherwise use feature values
+    // First try to use top_features from model (global importance)
+    let drivers = [];
+    if (modelCard && modelCard.top_features && Array.isArray(modelCard.top_features)) {
+        // Use model's top features and show their values for this neighbourhood
+        drivers = modelCard.top_features.slice(0, 5).map(featureName => {
+            const featKey = `feat_${featureName}`;
+            const value = parseFloat(props[featKey] || 0);
+            return {
+                name: featureName.replace(/_/g, ' '),
+                value: value,
+                importance: true // Mark as important feature
+            };
+        });
+    } else {
+        // Fallback: use features with highest absolute values
+        const featurePrefix = 'feat_';
+        drivers = Object.keys(props)
+            .filter(k => k.startsWith(featurePrefix))
+            .map(k => ({
+                name: k.replace(featurePrefix, '').replace(/_/g, ' '),
+                value: parseFloat(props[k] || 0),
+                importance: false
+            }))
+            .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+            .slice(0, 5);
+    }
     
     let html = `
         <div class="info-row">
@@ -647,14 +718,58 @@ function updateEvaluation(tab) {
             </div>
         `;
     } else if (tab === 'errors') {
-        // Would need error data from model_card.json
-        container.innerHTML = `
-            <div class="eval-section">
-                <h4>Error Analysis</h4>
-                <p>Error analysis data would be displayed here.</p>
-                <p class="disclaimer">Note: Explanations indicate correlation, not causation.</p>
-            </div>
-        `;
+        // Display worst prediction errors from model_card.json
+        // Check if modelCard is loaded and has the data
+        if (!modelCard || !modelCard.metrics || !modelCard.metrics.test) {
+            container.innerHTML = `
+                <div class="eval-section">
+                    <h4>Error Analysis</h4>
+                    <p class="empty-state">Model card data not loaded yet. Please wait...</p>
+                    <p class="disclaimer">Note: Explanations indicate correlation, not causation.</p>
+                </div>
+            `;
+            return;
+        }
+        
+        const worstErrors = modelCard.metrics.test.worst_errors || [];
+        if (worstErrors.length > 0) {
+            container.innerHTML = `
+                <div class="eval-section">
+                    <h4>Worst Predictions (Top 10 by Error)</h4>
+                    <div class="error-list">
+                        ${worstErrors.map((err, idx) => {
+                            const name = err.name || err.neighbourhood || 'Unknown';
+                            const predicted = err.y_pred !== undefined ? err.y_pred : (err.predicted !== undefined ? err.predicted : 0);
+                            const actual = err.y_true !== undefined ? err.y_true : (err.actual !== undefined ? err.actual : 0);
+                            const error = err.error !== undefined ? err.error : Math.abs(predicted - actual);
+                            return `
+                                <div class="error-item">
+                                    <div class="error-rank">#${idx + 1}</div>
+                                    <div class="error-details">
+                                        <strong>${name}</strong>
+                                        ${err.year ? `<div class="error-year">Year: ${err.year}</div>` : ''}
+                                        <div class="error-metrics">
+                                            <span>Predicted: ${typeof predicted === 'number' ? predicted.toFixed(1) : predicted}</span>
+                                            <span>Actual: ${actual}</span>
+                                            <span class="error-value">Error: ${typeof error === 'number' ? error.toFixed(1) : error}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <p class="disclaimer">Note: Explanations indicate correlation, not causation.</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="eval-section">
+                    <h4>Error Analysis</h4>
+                    <p class="empty-state">Error analysis data not available. The model_card.json may not include worst_errors field.</p>
+                    <p class="disclaimer">Note: Explanations indicate correlation, not causation.</p>
+                </div>
+            `;
+        }
     }
 }
 
