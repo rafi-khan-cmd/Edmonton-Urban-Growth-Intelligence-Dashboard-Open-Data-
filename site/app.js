@@ -526,21 +526,34 @@ function updateTopK() {
     }).sort((a, b) => b.emerging_score - a.emerging_score);
     
     // Calculate under-served (low business density but high predicted growth)
-    // Under-served = high predicted growth BUT low current business density
-    // Score should penalize neighborhoods with high active businesses
+    // Under-served = areas with LOW current density AND HIGH predicted growth
+    // BUT exclude areas where actual >> predicted (they're over-performing/thriving, not under-served)
     // PERFORMANCE: Compute maxActive once before mapping
     const maxActive = Math.max(...filtered.map(f => safeNumber(f.properties.feat_active_businesses, 0)));
     
     const sortedUnderserved = [...filtered].map(f => {
         const activeBusinesses = safeNumber(f.properties.feat_active_businesses, 0);
         const predicted = safeNumber(f.properties.y_pred, 0);
+        const actual = f.properties.y_true !== null && f.properties.y_true !== undefined ? safeNumber(f.properties.y_true) : null;
         
         // Normalize active businesses to 0-1 scale (inverse: low density = high score)
         const normalizedDensity = maxActive > 0 ? 1 - (activeBusinesses / maxActive) : 1;
         
-        // Under-served score = predicted growth × (1 - normalized density)
-        // This favors: high predicted growth AND low current density
-        const underserved_score = predicted * normalizedDensity;
+        // Check if area is over-performing (actual >> predicted)
+        // If so, exclude from under-served - they're thriving, not under-served
+        let growthPotential = predicted;
+        if (actual !== null && isFinite(actual) && predicted > 0) {
+            const overPerformanceRatio = actual / predicted;
+            // If actual is 2x+ higher than predicted, this area is thriving (not under-served)
+            if (overPerformanceRatio >= 2.0) {
+                growthPotential = 0; // Exclude from under-served ranking
+            }
+        }
+        
+        // Under-served score = growth potential × (1 - normalized density)
+        // This identifies: areas with high predicted growth AND low current density
+        // But excludes areas where actual >> predicted (they're already thriving)
+        const underserved_score = growthPotential * normalizedDensity;
         
         return { ...f, underserved_score: underserved_score };
     }).sort((a, b) => b.underserved_score - a.underserved_score);
