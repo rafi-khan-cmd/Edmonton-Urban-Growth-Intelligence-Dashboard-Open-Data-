@@ -23,17 +23,42 @@ def aggregate_business_licences(business_gdf, neighbourhoods_gdf):
     # Group by neighbourhood and year
     agg = joined.groupby(["name", "year"]).agg({
         "issue_date": "count"  # Total licences issued
-    }).rename(columns={"issue_date": "new_businesses"})
+    }).rename(columns={"issue_date": "new_businesses"}).reset_index()
     
     # Active businesses (if status available)
+    # Check for status column (renamed from licencetype) or licencetype directly
+    status_col = None
     if "status" in joined.columns:
-        active = joined[joined["status"].str.contains("active|current|issued", case=False, na=False)]
-        active_agg = active.groupby(["name", "year"]).size().reset_index(name="active_businesses")
-        agg = agg.merge(active_agg, on=["name", "year"], how="left")
-        agg["active_businesses"] = agg["active_businesses"].fillna(0)
+        status_col = "status"
+    elif "licencetype" in joined.columns:
+        status_col = "licencetype"
+    
+    if status_col:
+        logger.info(f"Found {status_col} column, filtering for active businesses")
+        # For licencetype, assume all non-null are active (it's a type, not a status)
+        # For status column, filter for active/current/issued
+        if status_col == "licencetype":
+            # All licenses with a type are considered active
+            active = joined[joined[status_col].notna()]
+        else:
+            active = joined[joined[status_col].str.contains("active|current|issued", case=False, na=False)]
+        
+        if len(active) > 0:
+            active_agg = active.groupby(["name", "year"]).size().reset_index(name="active_businesses")
+            agg = agg.merge(active_agg, on=["name", "year"], how="left")
+            agg["active_businesses"] = agg["active_businesses"].fillna(0)
+            logger.info(f"Calculated active_businesses from {status_col} column. Total active: {agg['active_businesses'].sum()}, Max per neighbourhood: {agg['active_businesses'].max()}")
+        else:
+            logger.warning(f"{status_col} column found but no active businesses matched filter")
+            agg["active_businesses"] = 0
     else:
-        # Cumulative count as proxy
+        # If no status column, use all businesses as active (proxy)
+        # Count all businesses issued up to and including this year (cumulative)
+        # This is a proxy for active businesses - assumes licenses don't expire
+        logger.info(f"No status column found, using cumulative count as proxy for active_businesses")
+        agg = agg.sort_values(["name", "year"])
         agg["active_businesses"] = agg.groupby("name")["new_businesses"].cumsum()
+        logger.info(f"Calculated active_businesses using cumulative sum. Sample: {agg['active_businesses'].sum()} total")
     
     return agg.reset_index()
 
