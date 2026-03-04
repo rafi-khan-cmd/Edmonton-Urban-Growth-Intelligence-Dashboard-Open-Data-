@@ -20,10 +20,12 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
     """
     from io import StringIO
     
-    # Default page size: 1000 (Socrata default limit) or use max allowed
+    # Default page size: Use smaller sizes for CSV to avoid timeouts
+    # For large CSV datasets, use 10,000 per page (safer than 50,000)
     if page_size is None:
         if api_version == "soda2":
-            page_size = 50000  # Max for SODA 2.0
+            # Use smaller page size for CSV to avoid timeouts (especially for business_licences)
+            page_size = 10000 if format_type == "csv" else 50000  # 10k for CSV, 50k max for GeoJSON
         else:
             page_size = 1000  # Default for SODA 3
     
@@ -270,9 +272,11 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
             # Check if we need pagination (if total_size indicates more data, or we got exactly the limit)
             if use_pagination and ((total_size and total_size > params["$limit"]) or fetched_count == params["$limit"]):
                 logger.info("Dataset may have more records, using pagination...")
+                # Use smaller page size for CSV to avoid timeouts (especially for slow datasets like business_licences)
+                pagination_page_size = min(params["$limit"], 10000) if format_type == "csv" else params["$limit"]
                 return fetch_with_pagination(
                     resource_id, output_path, api_version, base_url,
-                    format_type, where_clause, select_cols, page_size=params["$limit"]
+                    format_type, where_clause, select_cols, page_size=pagination_page_size
                 )
             return True
         
@@ -404,9 +408,11 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         # Check if we need pagination for JSON data
         if use_pagination and fetched_count and fetched_count == params["$limit"]:
             logger.info("Fetched exactly the limit. Using pagination to check for more records...")
+            # Use smaller page size for CSV to avoid timeouts
+            pagination_page_size = min(params["$limit"], 10000) if format_type == "csv" else params["$limit"]
             return fetch_with_pagination(
                 resource_id, output_path, api_version, base_url,
-                format_type, where_clause, select_cols, page_size=params["$limit"]
+                format_type, where_clause, select_cols, page_size=pagination_page_size
             )
         
         # Check if it's geospatial data

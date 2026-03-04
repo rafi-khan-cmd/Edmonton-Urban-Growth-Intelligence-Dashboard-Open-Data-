@@ -27,7 +27,7 @@ business_licences:
   api_version: "soda2"  # Use resource endpoint (public, no auth)
   format: "csv"
   output_file: "business_licences.csv"
-  limit: 50000
+  limit: 10000  # Reduced initial limit to avoid timeout - pagination will fetch the rest
   use_pagination: true
 
 development_permits:
