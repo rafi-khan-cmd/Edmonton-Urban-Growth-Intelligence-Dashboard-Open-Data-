@@ -498,9 +498,18 @@ function updateTopK() {
         safeNumber(b.properties.growth_score, 0) - safeNumber(a.properties.growth_score, 0)
     );
     
-    const sortedByPredicted = [...filtered].sort((a, b) => 
-        safeNumber(b.properties.y_pred, 0) - safeNumber(a.properties.y_pred, 0)
-    );
+    // Sort by actual growth when available, otherwise predicted
+    // This ensures "High Absolute Growth" shows areas with actual high growth, not just predicted
+    const sortedByPredicted = [...filtered].sort((a, b) => {
+        const aActual = a.properties.y_true !== null && a.properties.y_true !== undefined ? safeNumber(a.properties.y_true) : null;
+        const bActual = b.properties.y_true !== null && b.properties.y_true !== undefined ? safeNumber(b.properties.y_true) : null;
+        
+        // Use actual if available, otherwise predicted
+        const aValue = (aActual !== null && isFinite(aActual)) ? aActual : safeNumber(a.properties.y_pred, 0);
+        const bValue = (bActual !== null && isFinite(bActual)) ? bActual : safeNumber(b.properties.y_pred, 0);
+        
+        return bValue - aValue;
+    });
     
     // Calculate "Emerging" - should use growth rate or emergence score, not just growth_score
     // Use emergence_score if available, otherwise use business_growth_rate, fallback to growth_score
@@ -570,7 +579,7 @@ function updateTopK() {
             break;
         case 'absolute':
             sorted = sortedByPredicted;
-            title = 'Top 10 High Absolute Growth (Count)';
+            title = 'Top 10 High Absolute Growth (Actual when available, else Predicted)';
             break;
         case 'underserved':
             sorted = sortedUnderserved;
@@ -598,7 +607,9 @@ function updateTopK() {
                     </div>
                     <div class="metrics">
                         <span>Score: ${formatNumber(props.growth_score, 1)}</span>
-                        <span>Predicted: ${formatNumber(props.y_pred, 1)}</span>
+                        ${props.y_true !== null && props.y_true !== undefined && isFinite(Number(props.y_true)) 
+                            ? `<span>Actual: ${formatNumber(props.y_true, 1)}</span>` 
+                            : `<span>Predicted: ${formatNumber(props.y_pred, 1)}</span>`}
                     </div>
                 </div>
             `;
