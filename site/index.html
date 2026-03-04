@@ -118,7 +118,7 @@
             <div class="scenario-header">
                 <label>
                     <input type="checkbox" id="scenarioMode"> 
-                    <span class="scenario-label">Scenario Analysis Mode</span>
+                    <span class="scenario-label">What-if Heuristic (Approx.)</span>
                 </label>
                 <div class="scenario-help">
                     <span class="help-icon">?</span>
@@ -130,6 +130,10 @@
                 </div>
             </div>
             <div id="scenarioSliders" class="scenario-sliders hidden">
+                <div class="scenario-disclaimer">
+                    <strong>⚠️ Disclaimer:</strong> Scenario mode uses an approximate adjustment heuristic, not a full model re-run. 
+                    Results are indicative and should not be treated as precise predictions.
+                </div>
                 <div class="slider-group">
                     <label>Development Permits: <span id="permitsAdj">0%</span></label>
                     <input type="range" id="permitsSlider" min="-50" max="50" value="0">
@@ -188,9 +192,10 @@
                         based on features from the current year (t).</p>
                     </div>
                     <div class="help-item">
-                        <strong>Scenario Mode:</strong>
-                        <p>Run "what-if" analyses by adjusting key indicators. See how hypothetical changes 
-                        to permits, construction value, or zoning would affect growth predictions and rankings.</p>
+                    <strong>Scenario Mode (What-if Heuristic):</strong>
+                    <p>Run "what-if" analyses by adjusting key indicators. See how hypothetical changes 
+                    to permits, construction value, or zoning would affect growth predictions and rankings.
+                    <strong>Note:</strong> Scenario mode uses an approximate adjustment heuristic, not a full model re-run.</p>
                     </div>
                 </div>
 
@@ -232,6 +237,7 @@
     
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="app.js?v=2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>

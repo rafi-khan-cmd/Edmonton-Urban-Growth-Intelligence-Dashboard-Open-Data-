@@ -520,6 +520,23 @@ header h1 {
     display: none;
 }
 
+.scenario-disclaimer {
+    padding: 12px 16px;
+    background: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid var(--warning);
+    border-radius: 6px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.scenario-disclaimer strong {
+    color: var(--warning);
+    display: block;
+    margin-bottom: 4px;
+}
+
 .slider-group {
     display: flex;
     flex-direction: column;
@@ -765,6 +782,13 @@ header h1 {
     font-size: 0.75em;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+.legend-note {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    margin-top: 5px;
+    font-style: italic;
 }
 
 .info-panel {

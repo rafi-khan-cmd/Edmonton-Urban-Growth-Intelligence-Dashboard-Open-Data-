@@ -2,13 +2,26 @@
 let map;
 let predictionsLayer;
 let predictionsData = {};
+let predictionsIndex = {}; // Index: predictionsIndex[year][name] = feature
 let timeseriesData = {};
 let modelCard = {};
 let currentYear = null;
 let currentViewMode = 'score';
-let currentGrowthTarget = 'commercial';
 let chart = null;
 let scenarioAdjustments = { permits: 0, construction: 0, zoning: 0 };
+
+// Helper: Safe numeric formatting
+function formatNumber(value, decimals = 1) {
+    const num = Number(value);
+    if (!isFinite(num)) return 'N/A';
+    return num.toFixed(decimals);
+}
+
+// Helper: Safe numeric conversion
+function safeNumber(value, defaultValue = 0) {
+    const num = Number(value);
+    return isFinite(num) ? num : defaultValue;
+}
 
 // Initialize
 function initMap() {
@@ -24,7 +37,7 @@ function initMap() {
 // Load Model Card
 async function loadModelCard() {
     try {
-        const response = await fetch('assets/model_card.json?v=' + Date.now());
+        const response = await fetch('./assets/model_card.json?v=' + Date.now());
         if (!response.ok) {
             console.warn('Model card not found, using defaults');
             return;
@@ -42,27 +55,39 @@ async function loadModelCard() {
         const updatedEl = document.getElementById('lastUpdated');
         
         if (maeEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.mae !== undefined) {
-            maeEl.textContent = modelCard.metrics.test.mae.toFixed(2);
+            maeEl.textContent = formatNumber(modelCard.metrics.test.mae, 2);
+        } else if (maeEl) {
+            maeEl.textContent = 'N/A';
         }
         
         if (rmseEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.rmse !== undefined) {
-            rmseEl.textContent = modelCard.metrics.test.rmse.toFixed(2);
+            rmseEl.textContent = formatNumber(modelCard.metrics.test.rmse, 2);
+        } else if (rmseEl) {
+            rmseEl.textContent = 'N/A';
         }
         
         if (topKEl && modelCard.metrics && modelCard.metrics.test && modelCard.metrics.test.top_k_overlap !== undefined) {
-            topKEl.textContent = (modelCard.metrics.test.top_k_overlap * 100).toFixed(1) + '%';
+            topKEl.textContent = formatNumber(modelCard.metrics.test.top_k_overlap * 100, 1) + '%';
+        } else if (topKEl) {
+            topKEl.textContent = 'N/A';
         }
         
         if (trainYearsEl && modelCard.train_test_split && modelCard.train_test_split.train_years) {
             trainYearsEl.textContent = modelCard.train_test_split.train_years;
+        } else if (trainYearsEl) {
+            trainYearsEl.textContent = 'N/A';
         }
         
         if (testYearsEl && modelCard.train_test_split && modelCard.train_test_split.test_years) {
             testYearsEl.textContent = modelCard.train_test_split.test_years;
+        } else if (testYearsEl) {
+            testYearsEl.textContent = 'N/A';
         }
         
         if (numNeighEl && modelCard.data_ranges && modelCard.data_ranges.neighbourhoods !== undefined) {
             numNeighEl.textContent = modelCard.data_ranges.neighbourhoods;
+        } else if (numNeighEl) {
+            numNeighEl.textContent = 'N/A';
         }
         
         if (freshnessEl) {
@@ -73,6 +98,8 @@ async function loadModelCard() {
         
         if (updatedEl && modelCard.last_updated) {
             updatedEl.textContent = new Date(modelCard.last_updated).toLocaleString();
+        } else if (updatedEl) {
+            updatedEl.textContent = 'N/A';
         }
     } catch (error) {
         console.error('Error loading model card:', error);
@@ -89,62 +116,96 @@ async function loadData() {
         }
         
         // Load predictions
-        const predictionsResponse = await fetch('assets/predictions.geojson?v=' + Date.now());
+        const predictionsResponse = await fetch('./assets/predictions.geojson?v=' + Date.now());
         if (!predictionsResponse.ok) {
             throw new Error('Failed to load predictions.geojson');
         }
         const predictions = await predictionsResponse.json();
         
-        // Organize by year
+        // Organize by year and build index
+        predictionsData = {};
+        predictionsIndex = {};
         if (predictions.features) {
             predictions.features.forEach(feature => {
                 const year = feature.properties.year;
+                const name = feature.properties.name;
+                
                 if (!predictionsData[year]) {
                     predictionsData[year] = [];
+                    predictionsIndex[year] = {};
                 }
                 predictionsData[year].push(feature);
+                predictionsIndex[year][name] = feature;
             });
         }
         
-        // Load timeseries
-        const timeseriesResponse = await fetch('assets/timeseries.csv?v=' + Date.now());
+        // Load timeseries using Papa Parse
+        const timeseriesResponse = await fetch('./assets/timeseries.csv?v=' + Date.now());
         if (!timeseriesResponse.ok) {
             console.warn('Timeseries not found, continuing without it');
             timeseriesData = {};
         } else {
             const timeseriesText = await timeseriesResponse.text();
-            const lines = timeseriesText.split('\n');
-            const headers = lines[0].split(',');
             
-            timeseriesData = {};
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i].trim()) continue;
-                const values = lines[i].split(',');
-                const name = values[0];
-                const year = parseInt(values[1]);
-                
-                if (!timeseriesData[name]) {
-                    timeseriesData[name] = [];
-                }
-                
-                const record = {};
-                headers.forEach((h, idx) => {
-                    record[h] = values[idx];
+            // Use Papa Parse for robust CSV parsing
+            if (typeof Papa !== 'undefined') {
+                const parsed = Papa.parse(timeseriesText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true // Automatically convert numbers
                 });
-                timeseriesData[name].push(record);
+                
+                timeseriesData = {};
+                parsed.data.forEach(record => {
+                    const name = record.name;
+                    if (!name) return;
+                    
+                    if (!timeseriesData[name]) {
+                        timeseriesData[name] = [];
+                    }
+                    timeseriesData[name].push(record);
+                });
+            } else {
+                // Fallback to manual parsing if Papa Parse not loaded
+                console.warn('Papa Parse not loaded, using fallback CSV parsing');
+                const lines = timeseriesText.split('\n');
+                const headers = lines[0].split(',');
+                
+                timeseriesData = {};
+                for (let i = 1; i < lines.length; i++) {
+                    if (!lines[i].trim()) continue;
+                    const values = lines[i].split(',');
+                    const name = values[0];
+                    
+                    if (!timeseriesData[name]) {
+                        timeseriesData[name] = [];
+                    }
+                    
+                    const record = {};
+                    headers.forEach((h, idx) => {
+                        const val = values[idx];
+                        // Try to convert to number
+                        const numVal = Number(val);
+                        record[h] = isFinite(numVal) ? numVal : val;
+                    });
+                    timeseriesData[name].push(record);
+                }
             }
         }
         
-        // Populate year selector
-        const years = Object.keys(predictionsData).sort((a, b) => b - a);
+        // Populate year selector with numeric sort
+        const years = Object.keys(predictionsData).map(y => Number(y)).filter(y => !isNaN(y)).sort((a, b) => b - a);
         const yearSelect = document.getElementById('yearSelect');
         if (yearSelect && years.length > 0) {
             yearSelect.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
-            currentYear = years[0];
+            currentYear = String(years[0]);
             yearSelect.value = currentYear;
             updateMap();
             updateTopK();
         }
+        
+        // Initialize search
+        initializeSearch();
         
     } catch (error) {
         console.error('Error loading data:', error);
@@ -153,6 +214,78 @@ async function loadData() {
             topKContent.innerHTML = '<div class="empty-state">Error loading data. Make sure assets are generated.</div>';
         }
     }
+}
+
+// Initialize search functionality
+function initializeSearch() {
+    const searchInput = document.getElementById('neighborhoodSearch');
+    const suggestionsDiv = document.getElementById('searchSuggestions');
+    
+    if (!searchInput || !suggestionsDiv) return;
+    
+    // Get all unique neighborhood names
+    const allNames = new Set();
+    Object.values(predictionsData).forEach(features => {
+        features.forEach(f => {
+            if (f.properties && f.properties.name) {
+                allNames.add(f.properties.name);
+            }
+        });
+    });
+    const namesArray = Array.from(allNames).sort();
+    
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        suggestionsDiv.innerHTML = '';
+        suggestionsDiv.classList.add('hidden');
+        
+        if (query.length < 2) return;
+        
+        const matches = namesArray.filter(name => 
+            name.toLowerCase().includes(query)
+        ).slice(0, 10);
+        
+        if (matches.length > 0) {
+            matches.forEach(name => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.textContent = name;
+                item.addEventListener('click', () => {
+                    // Find feature for current year
+                    if (currentYear && predictionsIndex[currentYear] && predictionsIndex[currentYear][name]) {
+                        showInfoPanel(predictionsIndex[currentYear][name].properties);
+                    } else {
+                        // Try to find in any year
+                        for (const year in predictionsIndex) {
+                            if (predictionsIndex[year][name]) {
+                                // Switch to that year
+                                const yearSelect = document.getElementById('yearSelect');
+                                if (yearSelect) {
+                                    yearSelect.value = year;
+                                    currentYear = year;
+                                    updateMap();
+                                    updateTopK();
+                                }
+                                showInfoPanel(predictionsIndex[year][name].properties);
+                                break;
+                            }
+                        }
+                    }
+                    searchInput.value = '';
+                    suggestionsDiv.classList.add('hidden');
+                });
+                suggestionsDiv.appendChild(item);
+            });
+            suggestionsDiv.classList.remove('hidden');
+        }
+    });
+    
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !suggestionsDiv.contains(e.target)) {
+            suggestionsDiv.classList.add('hidden');
+        }
+    });
 }
 
 // Update map with selected year and view mode
@@ -167,28 +300,54 @@ function updateMap() {
     // Apply scenario adjustments
     const features = applyScenarioAdjustments(predictionsData[currentYear]);
     
-    // Get value based on view mode
+    // Get value based on view mode, handling missing actuals
     const getValue = (feature) => {
         switch(currentViewMode) {
             case 'score':
-                return feature.properties.growth_score;
+                return safeNumber(feature.properties.growth_score);
             case 'predicted':
-                return feature.properties.y_pred;
+                return safeNumber(feature.properties.y_pred);
             case 'actual':
-                return feature.properties.y_true || 0;
+                const yTrue = feature.properties.y_true;
+                // Return null if missing, not 0
+                return (yTrue !== null && yTrue !== undefined && isFinite(Number(yTrue))) ? Number(yTrue) : null;
             default:
-                return feature.properties.growth_score;
+                return safeNumber(feature.properties.growth_score);
         }
     };
     
-    const values = features.map(f => getValue(f));
+    // Get values, filtering out nulls for min/max calculation
+    const values = features.map(f => getValue(f)).filter(v => v !== null && isFinite(v));
+    
+    if (values.length === 0) {
+        // Empty state: no valid values
+        const topKContent = document.getElementById('topKContent');
+        if (topKContent) {
+            topKContent.innerHTML = '<div class="empty-state">No valid data available for selected view mode.</div>';
+        }
+        return;
+    }
+    
     const maxValue = Math.max(...values);
     const minValue = Math.min(...values);
+    const range = maxValue - minValue;
     
     predictionsLayer = L.geoJSON(features, {
         style: function(feature) {
             const value = getValue(feature);
-            const normalized = (value - minValue) / (maxValue - minValue || 1);
+            
+            // Handle missing actuals with special styling
+            if (value === null) {
+                return {
+                    fillColor: '#808080', // Grey
+                    color: 'rgba(255, 255, 255, 0.3)',
+                    weight: 1.5,
+                    fillOpacity: 0.3, // Lower opacity
+                    dashArray: '5, 5' // Hatch pattern
+                };
+            }
+            
+            const normalized = range > 0 ? (value - minValue) / range : 0.5;
             
             // Color scale: blue (low) to red (high) - avoiding green
             // Go from 240 (blue) to 360/0 (red) via purple/magenta to skip green
@@ -208,10 +367,12 @@ function updateMap() {
             const label = currentViewMode === 'score' ? 'Score' : 
                          currentViewMode === 'predicted' ? 'Predicted' : 'Actual';
             
-            layer.bindTooltip(`
-                <strong>${props.name}</strong><br>
-                ${label}: ${value.toFixed(1)}
-            `);
+            const valueText = value === null ? 'N/A' : formatNumber(value, 1);
+            const tooltipText = value === null && currentViewMode === 'actual' 
+                ? `<strong>${props.name}</strong><br>${label}: N/A`
+                : `<strong>${props.name}</strong><br>${label}: ${valueText}`;
+            
+            layer.bindTooltip(tooltipText);
             
             layer.on({
                 click: function() {
@@ -249,7 +410,7 @@ function applyScenarioAdjustments(features) {
         
         // Adjust future dev zoning (assume it's 0-100 scale, if 0-1 scale adjust accordingly)
         if (props.feat_zoning_future_dev_pct !== undefined) {
-            const currentZoning = parseFloat(props.feat_zoning_future_dev_pct);
+            const currentZoning = safeNumber(props.feat_zoning_future_dev_pct);
             // Check if it's 0-1 scale (decimal) or 0-100 scale (percentage)
             const isDecimal = currentZoning <= 1.0 && currentZoning >= 0;
             if (isDecimal) {
@@ -263,7 +424,7 @@ function applyScenarioAdjustments(features) {
             }
         }
         
-        // Recalculate prediction (simplified - would need model in JS for real recalculation)
+        // Recalculate prediction (simplified heuristic - not a full model re-run)
         // Weight adjustments: permits and construction value are strong signals
         // Zoning is structural capacity, less immediate impact
         const permitsWeight = 0.4;
@@ -275,8 +436,8 @@ function applyScenarioAdjustments(features) {
             (scenarioAdjustments.zoning / 100) * zoningWeight
         );
         // Adjust both y_pred and growth_score proportionally
-        props.y_pred = Math.max(0, props.y_pred * (1 + adjustment));
-        props.growth_score = Math.max(0, Math.min(100, props.growth_score * (1 + adjustment)));
+        props.y_pred = Math.max(0, safeNumber(props.y_pred) * (1 + adjustment));
+        props.growth_score = Math.max(0, Math.min(100, safeNumber(props.growth_score) * (1 + adjustment)));
         
         return newFeature;
     });
@@ -285,13 +446,35 @@ function applyScenarioAdjustments(features) {
 // Update legend
 function updateLegend(minValue, maxValue) {
     const legend = document.getElementById('legend');
+    if (!legend) return;
+    
     const label = currentViewMode === 'score' ? 'Growth Score (0-100)' :
                  currentViewMode === 'predicted' ? 'Predicted New Licences (count)' :
                  'Actual New Licences (count)';
     
-    legend.querySelector('h4').textContent = label;
-    legend.querySelector('.legend-labels span:first-child').textContent = minValue.toFixed(1);
-    legend.querySelector('.legend-labels span:last-child').textContent = maxValue.toFixed(1);
+    const h4 = legend.querySelector('h4');
+    if (h4) h4.textContent = label;
+    
+    const labels = legend.querySelectorAll('.legend-labels span');
+    if (labels.length >= 2) {
+        labels[0].textContent = isFinite(minValue) ? formatNumber(minValue, 1) : 'N/A';
+        labels[1].textContent = isFinite(maxValue) ? formatNumber(maxValue, 1) : 'N/A';
+    }
+    
+    // Add note for missing actuals if in actual mode
+    if (currentViewMode === 'actual') {
+        let note = legend.querySelector('.legend-note');
+        if (!note) {
+            note = document.createElement('div');
+            note.className = 'legend-note';
+            note.style.cssText = 'font-size: 0.75em; color: #999; margin-top: 5px;';
+            legend.appendChild(note);
+        }
+        note.textContent = 'Grey = Actual N/A';
+    } else {
+        const note = legend.querySelector('.legend-note');
+        if (note) note.remove();
+    }
 }
 
 // Update Top-K lists
@@ -299,40 +482,39 @@ function updateTopK() {
     if (!currentYear || !predictionsData[currentYear]) return;
     
     const features = predictionsData[currentYear];
-    const zoningFilter = parseFloat(document.getElementById('zoningFilter').value) || 0;
+    const zoningFilter = safeNumber(document.getElementById('zoningFilter')?.value, 0);
     
     // Filter by zoning if needed
     let filtered = features;
     if (zoningFilter > 0) {
         filtered = features.filter(f => {
-            const futureDev = f.properties.feat_zoning_future_dev_pct || 0;
+            const futureDev = safeNumber(f.properties.feat_zoning_future_dev_pct, 0);
             return futureDev >= zoningFilter;
         });
     }
     
     // Sort by different criteria
     const sortedByScore = [...filtered].sort((a, b) => 
-        b.properties.growth_score - a.properties.growth_score
+        safeNumber(b.properties.growth_score, 0) - safeNumber(a.properties.growth_score, 0)
     );
     
     const sortedByPredicted = [...filtered].sort((a, b) => 
-        b.properties.y_pred - a.properties.y_pred
+        safeNumber(b.properties.y_pred, 0) - safeNumber(a.properties.y_pred, 0)
     );
     
     // Calculate "Emerging" - should use growth rate or emergence score, not just growth_score
     // Use emergence_score if available, otherwise use business_growth_rate, fallback to growth_score
     const sortedEmerging = [...filtered].map(f => {
-        const emergenceScore = parseFloat(f.properties.emergence_score);
-        const growthRate = parseFloat(f.properties.feat_business_growth_rate);
-        const growthScore = f.properties.growth_score || 0;
+        const emergenceScore = safeNumber(f.properties.emergence_score);
+        const growthRate = safeNumber(f.properties.feat_business_growth_rate);
+        const growthScore = safeNumber(f.properties.growth_score, 0);
         
         // Prefer emergence_score if it exists (even if 0 or negative), then growth_rate, then growth_score
-        // Check for existence using !== undefined, not !== 0 (0 is a valid value)
         let emerging_score;
-        if (f.properties.emergence_score !== undefined && !isNaN(emergenceScore)) {
+        if (f.properties.emergence_score !== undefined && isFinite(emergenceScore)) {
             // Emergence score can be negative (declining), but we want positive (emerging)
             emerging_score = Math.max(0, emergenceScore) * 100; // Scale up and ensure non-negative
-        } else if (f.properties.feat_business_growth_rate !== undefined && !isNaN(growthRate)) {
+        } else if (f.properties.feat_business_growth_rate !== undefined && isFinite(growthRate)) {
             // Growth rate is percentage change, scale appropriately
             emerging_score = Math.max(0, growthRate) * 100; // Ensure non-negative for "emerging"
         } else {
@@ -346,12 +528,14 @@ function updateTopK() {
     // Calculate under-served (low business density but high predicted growth)
     // Under-served = high predicted growth BUT low current business density
     // Score should penalize neighborhoods with high active businesses
+    // PERFORMANCE: Compute maxActive once before mapping
+    const maxActive = Math.max(...filtered.map(f => safeNumber(f.properties.feat_active_businesses, 0)));
+    
     const sortedUnderserved = [...filtered].map(f => {
-        const activeBusinesses = parseFloat(f.properties.feat_active_businesses || 0);
-        const predicted = f.properties.y_pred;
+        const activeBusinesses = safeNumber(f.properties.feat_active_businesses, 0);
+        const predicted = safeNumber(f.properties.y_pred, 0);
         
         // Normalize active businesses to 0-1 scale (inverse: low density = high score)
-        const maxActive = Math.max(...filtered.map(f => parseFloat(f.properties.feat_active_businesses || 0)));
         const normalizedDensity = maxActive > 0 ? 1 - (activeBusinesses / maxActive) : 1;
         
         // Under-served score = predicted growth × (1 - normalized density)
@@ -390,25 +574,33 @@ function updateTopK() {
         ${sorted.slice(0, 10).map((f, idx) => {
             const props = f.properties;
             const rank = idx + 1;
+            const name = props.name || 'Unknown';
+            const year = props.year || currentYear;
+            
+            // Use index lookup instead of embedding JSON
             return `
-                <div class="neighbourhood-item" data-props='${JSON.stringify(props)}'>
+                <div class="neighbourhood-item" data-name="${name}" data-year="${year}">
                     <div class="name">
-                        <span class="rank">#${rank}</span> ${props.name}
+                        <span class="rank">#${rank}</span> ${name}
                     </div>
                     <div class="metrics">
-                        <span>Score: ${props.growth_score.toFixed(1)}</span>
-                        <span>Predicted: ${props.y_pred.toFixed(1)}</span>
+                        <span>Score: ${formatNumber(props.growth_score, 1)}</span>
+                        <span>Predicted: ${formatNumber(props.y_pred, 1)}</span>
                     </div>
                 </div>
             `;
         }).join('')}
     `;
     
-    // Add click handlers
+    // Add click handlers using index lookup
     container.querySelectorAll('.neighbourhood-item').forEach(item => {
         item.addEventListener('click', () => {
-            const props = JSON.parse(item.getAttribute('data-props'));
-            showInfoPanel(props);
+            const name = item.getAttribute('data-name');
+            const year = item.getAttribute('data-year');
+            
+            if (predictionsIndex[year] && predictionsIndex[year][name]) {
+                showInfoPanel(predictionsIndex[year][name].properties);
+            }
         });
     });
 }
@@ -419,7 +611,9 @@ function showInfoPanel(props) {
     const title = document.getElementById('panelTitle');
     const content = document.getElementById('panelContent');
     
-    title.textContent = props.name;
+    if (!panel || !title || !content) return;
+    
+    title.textContent = props.name || 'Unknown';
     
     // Get top drivers - use feature importance from model if available, otherwise use feature values
     // First try to use top_features from model (global importance)
@@ -428,7 +622,7 @@ function showInfoPanel(props) {
         // Use model's top features and show their values for this neighbourhood
         drivers = modelCard.top_features.slice(0, 5).map(featureName => {
             const featKey = `feat_${featureName}`;
-            const value = parseFloat(props[featKey] || 0);
+            const value = safeNumber(props[featKey], 0);
             return {
                 name: featureName.replace(/_/g, ' '),
                 value: value,
@@ -442,7 +636,7 @@ function showInfoPanel(props) {
             .filter(k => k.startsWith(featurePrefix))
             .map(k => ({
                 name: k.replace(featurePrefix, '').replace(/_/g, ' '),
-                value: parseFloat(props[k] || 0),
+                value: safeNumber(props[k], 0),
                 importance: false
             }))
             .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
@@ -452,19 +646,27 @@ function showInfoPanel(props) {
     let html = `
         <div class="info-row">
             <span class="info-label">Year:</span>
-            <span class="info-value">${props.year}</span>
+            <span class="info-value">${props.year || 'N/A'}</span>
         </div>
         <div class="info-row">
             <span class="info-label">Predicted New Businesses:</span>
-            <span class="info-value">${props.y_pred.toFixed(1)}</span>
+            <span class="info-value">${formatNumber(props.y_pred, 1)}</span>
         </div>
     `;
     
-    if (props.y_true !== null && props.y_true !== undefined) {
+    // Handle missing actuals properly
+    if (props.y_true !== null && props.y_true !== undefined && isFinite(Number(props.y_true))) {
         html += `
             <div class="info-row">
                 <span class="info-label">Actual New Businesses:</span>
-                <span class="info-value">${props.y_true}</span>
+                <span class="info-value">${formatNumber(props.y_true, 1)}</span>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="info-row">
+                <span class="info-label">Actual New Businesses:</span>
+                <span class="info-value">N/A</span>
             </div>
         `;
     }
@@ -472,7 +674,7 @@ function showInfoPanel(props) {
     html += `
         <div class="info-row">
             <span class="info-label">Growth Score:</span>
-            <span class="info-value">${props.growth_score.toFixed(1)}</span>
+            <span class="info-value">${formatNumber(props.growth_score, 1)}</span>
         </div>
     `;
     
@@ -481,7 +683,7 @@ function showInfoPanel(props) {
             <div class="features-list">
                 <strong>Top Drivers:</strong>
                 <ul>
-                    ${drivers.map(d => `<li>${d.name}: ${d.value.toFixed(2)}</li>`).join('')}
+                    ${drivers.map(d => `<li>${d.name}: ${formatNumber(d.value, 2)}</li>`).join('')}
                 </ul>
             </div>
         `;
@@ -494,6 +696,15 @@ function showInfoPanel(props) {
                 <ul>
                     ${props.top_features.map(f => `<li>${f.replace(/_/g, ' ')}</li>`).join('')}
                 </ul>
+            </div>
+        `;
+    }
+    
+    // Add scenario mode disclaimer if active
+    if (scenarioAdjustments.permits !== 0 || scenarioAdjustments.construction !== 0 || scenarioAdjustments.zoning !== 0) {
+        html += `
+            <div class="scenario-disclaimer" style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.85em;">
+                <strong>⚠️ Scenario Mode Active:</strong> Values shown are approximate adjustments, not full model re-runs.
             </div>
         `;
     }
@@ -514,20 +725,23 @@ function showChart(neighbourhoodName) {
     if (!data || data.length === 0) return;
     
     const canvas = document.getElementById('chartCanvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     
     if (chart) {
         chart.destroy();
     }
     
-    const years = data.map(d => parseInt(d.year)).sort();
+    // Fix year sorting: numeric sort
+    const years = data.map(d => safeNumber(d.year)).filter(y => isFinite(y)).sort((a, b) => a - b);
+    
     const predicted = years.map(y => {
-        const record = data.find(d => parseInt(d.year) === y);
-        return parseFloat(record.y_pred || 0);
+        const record = data.find(d => safeNumber(d.year) === y);
+        return safeNumber(record?.y_pred, 0);
     });
     const actual = years.map(y => {
-        const record = data.find(d => parseInt(d.year) === y);
-        return parseFloat(record.new_businesses || 0);
+        const record = data.find(d => safeNumber(d.year) === y);
+        return safeNumber(record?.new_businesses, 0);
     });
     
     chart = new Chart(ctx, {
@@ -580,14 +794,6 @@ function setupEventListeners() {
     if (viewMode) {
         viewMode.addEventListener('change', (e) => {
             currentViewMode = e.target.value;
-            updateMap();
-        });
-    }
-
-    const growthTarget = document.getElementById('growthTarget');
-    if (growthTarget) {
-        growthTarget.addEventListener('change', (e) => {
-            currentGrowthTarget = e.target.value;
             updateMap();
         });
     }
@@ -651,9 +857,9 @@ function setupEventListeners() {
     const permitsSlider = document.getElementById('permitsSlider');
     if (permitsSlider) {
         permitsSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.permits = parseFloat(e.target.value);
+            scenarioAdjustments.permits = safeNumber(e.target.value, 0);
             const adjEl = document.getElementById('permitsAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
+            if (adjEl) adjEl.textContent = formatNumber(scenarioAdjustments.permits, 0) + '%';
             updateMap();
         });
     }
@@ -661,9 +867,9 @@ function setupEventListeners() {
     const constructionSlider = document.getElementById('constructionSlider');
     if (constructionSlider) {
         constructionSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.construction = parseFloat(e.target.value);
+            scenarioAdjustments.construction = safeNumber(e.target.value, 0);
             const adjEl = document.getElementById('constructionAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
+            if (adjEl) adjEl.textContent = formatNumber(scenarioAdjustments.construction, 0) + '%';
             updateMap();
         });
     }
@@ -671,9 +877,9 @@ function setupEventListeners() {
     const zoningSlider = document.getElementById('zoningSlider');
     if (zoningSlider) {
         zoningSlider.addEventListener('input', (e) => {
-            scenarioAdjustments.zoning = parseFloat(e.target.value);
+            scenarioAdjustments.zoning = safeNumber(e.target.value, 0);
             const adjEl = document.getElementById('zoningAdj');
-            if (adjEl) adjEl.textContent = e.target.value + '%';
+            if (adjEl) adjEl.textContent = formatNumber(scenarioAdjustments.zoning, 0) + '%';
             updateMap();
         });
     }
@@ -702,15 +908,23 @@ function setupEventListeners() {
 // Update evaluation section
 function updateEvaluation(tab) {
     const container = document.getElementById('evaluationContent');
+    if (!container) return;
     
     if (tab === 'validation') {
+        const trainYears = modelCard.train_test_split?.train_years || 'N/A';
+        const testYears = modelCard.train_test_split?.test_years || 'N/A';
+        const trainSamples = modelCard.data_ranges?.train_samples !== undefined ? modelCard.data_ranges.train_samples : 'N/A';
+        const testSamples = modelCard.data_ranges?.test_samples !== undefined ? modelCard.data_ranges.test_samples : 'N/A';
+        const method = modelCard.train_test_split?.method || 'time_based';
+        
         container.innerHTML = `
             <div class="eval-section">
                 <h4>Time Split Validation</h4>
-                <p><strong>Train:</strong> ${modelCard.train_test_split.train_years}</p>
-                <p><strong>Test:</strong> ${modelCard.train_test_split.test_years}</p>
-                <p><strong>Train Samples:</strong> ${modelCard.data_ranges.train_samples}</p>
-                <p><strong>Test Samples:</strong> ${modelCard.data_ranges.test_samples}</p>
+                <p><strong>Method:</strong> ${method}</p>
+                <p><strong>Train Years:</strong> ${trainYears}</p>
+                <p><strong>Test Years:</strong> ${testYears}</p>
+                <p><strong>Train Samples:</strong> ${trainSamples}</p>
+                <p><strong>Test Samples:</strong> ${testSamples}</p>
             </div>
             <div class="eval-section">
                 <h4>Geographic Holdout</h4>
@@ -741,17 +955,18 @@ function updateEvaluation(tab) {
                             const name = err.name || err.neighbourhood || 'Unknown';
                             const predicted = err.y_pred !== undefined ? err.y_pred : (err.predicted !== undefined ? err.predicted : 0);
                             const actual = err.y_true !== undefined ? err.y_true : (err.actual !== undefined ? err.actual : 0);
-                            const error = err.error !== undefined ? err.error : Math.abs(predicted - actual);
+                            const error = err.error !== undefined ? err.error : Math.abs(safeNumber(predicted) - safeNumber(actual));
+                            const year = err.year !== undefined ? err.year : 'N/A';
                             return `
                                 <div class="error-item">
                                     <div class="error-rank">#${idx + 1}</div>
                                     <div class="error-details">
                                         <strong>${name}</strong>
-                                        ${err.year ? `<div class="error-year">Year: ${err.year}</div>` : ''}
+                                        <div class="error-year">Year: ${year}</div>
                                         <div class="error-metrics">
-                                            <span>Predicted: ${typeof predicted === 'number' ? predicted.toFixed(1) : predicted}</span>
-                                            <span>Actual: ${actual}</span>
-                                            <span class="error-value">Error: ${typeof error === 'number' ? error.toFixed(1) : error}</span>
+                                            <span>Predicted: ${formatNumber(predicted, 1)}</span>
+                                            <span>Actual: ${formatNumber(actual, 1)}</span>
+                                            <span class="error-value">Error: ${formatNumber(error, 1)}</span>
                                         </div>
                                     </div>
                                 </div>
