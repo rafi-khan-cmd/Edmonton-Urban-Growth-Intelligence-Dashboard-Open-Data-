@@ -920,17 +920,17 @@ function addToCompare(props) {
 function removeFromCompare(name, year) {
     compareSelection = compareSelection.filter(item => !(item.name === name && item.year === year));
     updateComparisonTray();
-    
-    // Hide comparison panel if less than 2
-    if (compareSelection.length < 2) {
-        const panel = document.getElementById('comparisonPanel');
-        if (panel) panel.classList.add('hidden');
-    }
 }
 
 function updateComparisonTray() {
     const tray = document.getElementById('comparisonTray');
     if (!tray) return;
+    
+    // Hide comparison panel if less than 2 items
+    const panel = document.getElementById('comparisonPanel');
+    if (panel && compareSelection.length < 2) {
+        panel.classList.add('hidden');
+    }
     
     if (compareSelection.length === 0) {
         tray.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85em;">No neighbourhoods selected for comparison. Click "Add to Compare" in the info panel.</p>';
@@ -1457,6 +1457,12 @@ if (document.readyState === 'loading') {
         initMap();
         loadModelCard();
         loadData();
+        // Ensure comparison panel is hidden on load
+        const panel = document.getElementById('comparisonPanel');
+        if (panel) {
+            panel.classList.add('hidden');
+        }
+        // Initialize empty comparison tray
         updateComparisonTray();
     });
 } else {
@@ -1465,5 +1471,11 @@ if (document.readyState === 'loading') {
     initMap();
     loadModelCard();
     loadData();
+    // Ensure comparison panel is hidden on load
+    const panel = document.getElementById('comparisonPanel');
+    if (panel) {
+        panel.classList.add('hidden');
+    }
+    // Initialize empty comparison tray
     updateComparisonTray();
 }
