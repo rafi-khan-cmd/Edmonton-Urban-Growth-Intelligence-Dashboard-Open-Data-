@@ -28,16 +28,27 @@ def aggregate_business_licences(business_gdf, neighbourhoods_gdf):
     # Active businesses (if status available)
     # Check for status column (renamed from licencetype) or licencetype directly
     status_col = None
+    is_licence_type = False  # Track if this is a type column (not a status column)
+    
     if "status" in joined.columns:
         status_col = "status"
+        # Check if status column contains license types (not status words)
+        # If values don't contain "active", "expired", "current", etc., it's likely a type column
+        sample_values = joined[status_col].dropna().head(10).astype(str).str.lower()
+        if len(sample_values) > 0:
+            has_status_words = sample_values.str.contains("active|expired|current|issued|cancelled|suspended", case=False, na=False).any()
+            if not has_status_words:
+                is_licence_type = True
+                logger.info(f"Status column appears to contain license types, treating all non-null as active")
     elif "licencetype" in joined.columns:
         status_col = "licencetype"
+        is_licence_type = True
     
     if status_col:
-        logger.info(f"Found {status_col} column, filtering for active businesses")
-        # For licencetype, assume all non-null are active (it's a type, not a status)
-        # For status column, filter for active/current/issued
-        if status_col == "licencetype":
+        logger.info(f"Found {status_col} column, filtering for active businesses (is_type={is_licence_type})")
+        # For licencetype or type-like columns, assume all non-null are active
+        # For actual status columns, filter for active/current/issued
+        if is_licence_type:
             # All licenses with a type are considered active
             active = joined[joined[status_col].notna()]
         else:
