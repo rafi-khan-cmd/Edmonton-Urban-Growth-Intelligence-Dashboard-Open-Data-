@@ -46,13 +46,14 @@
 - **Color coding**: Blue (low) → Purple/Magenta (medium) → Red (high)
 - **Important**: This focuses on **momentum and acceleration**, not absolute counts. A small neighborhood going from 2→10 businesses gets a higher score than a large one going from 100→105, even though the absolute count is lower.
 
-### **Predicted Count**
-- **What it means**: Actual predicted number of new business licences for next year
-- **How to read**: Direct prediction from the model (e.g., "5.3 new licences")
-- **Example**: If predicted = 8.5, the model expects ~8-9 new businesses next year
+### **Predicted Licences Issued**
+- **What it means**: Actual predicted number of new business licences issued for next year
+- **How to read**: Direct prediction from the model (e.g., "5.3 new licences issued")
+- **Example**: If predicted = 8.5, the model expects ~8-9 new business licences to be issued next year
+- **Note**: This serves as a proxy for commercial growth, not revenue or business success
 
-### **Actual Count**
-- **What it means**: Real number of new business licences that actually occurred (if available)
+### **Actual Licences Issued**
+- **What it means**: Real number of new business licences issued that actually occurred (if available)
 - **How to read**: Compare with predicted to see model accuracy
 - **Example**: Predicted = 8.5, Actual = 7 means model was close but slightly optimistic
 
@@ -61,18 +62,18 @@
 ## 📈 Top Rankings Lists
 
 ### **Emerging Neighbourhoods**
-- **What it means**: Neighbourhoods with highest growth rate (percentage increase)
-- **How to read**: Fast-growing areas, even if starting from low base
+- **What it means**: Fast-rising areas based on acceleration and recent growth momentum
+- **How to read**: Neighbourhoods with highest growth rate (percentage increase), even if starting from low base
 - **Use case**: Identify areas experiencing rapid commercial development
 
-### **High Absolute Growth**
-- **What it means**: Neighbourhoods with highest predicted number of new businesses (raw count)
-- **How to read**: Areas expecting most new businesses, regardless of current size
+### **Highest Absolute Growth**
+- **What it means**: Neighbourhoods with the highest actual or predicted licence issuance
+- **How to read**: Areas expecting most new business licences issued, regardless of current size
 - **Use case**: Identify major commercial expansion areas
 
-### **Under-served Neighbourhoods**
-- **What it means**: Low current business density but high predicted growth
-- **How to read**: Areas with growth potential but currently lacking businesses
+### **Under-served Opportunity Areas**
+- **What it means**: Areas with relatively low current business density but strong projected growth
+- **How to read**: Neighbourhoods with growth potential but currently lacking businesses
 - **Use case**: Identify opportunities for new commercial development
 
 ---
@@ -112,11 +113,12 @@
 
 When you click a neighbourhood, you see:
 
-### **Predicted New Businesses**
+### **Predicted New Licences Issued**
 - Model's forecast for next year
-- Example: "8.5" means ~8-9 new business licences expected
+- Example: "8.5" means ~8-9 new business licences issued expected
+- Serves as a proxy for commercial growth
 
-### **Actual New Businesses** (if available)
+### **Actual New Licences Issued** (if available)
 - What actually happened
 - Compare with predicted to assess model accuracy
 
@@ -151,9 +153,9 @@ When you click a neighbourhood, you see:
 ## 🎯 Key Concepts
 
 ### **Growth Definition**
-- **Target**: Number of NEW business licences issued in year (t+1)
+- **Target**: Number of new business licences issued in year (t+1)
 - **Features**: Uses data from year (t) only (no data leakage)
-- **What it predicts**: Commercial growth (new businesses opening)
+- **What it predicts**: New business licences issued, which serves as a proxy for commercial growth
 
 ### **Why This Matters**
 - Helps identify where commercial development is likely
@@ -161,8 +163,12 @@ When you click a neighbourhood, you see:
 - Based on real City of Edmonton open data
 
 ### **Limitations**
+- Forecasts new business licences issued, not revenue or business success
+- Uses open-data proxies and historical patterns
+- Zoning treated as static (doesn't change over time)
+- Scenario mode is approximate
+- Intended for exploratory planning and screening, not causal claims or guaranteed outcomes
 - Predictions are probabilistic, not guarantees
-- Based on historical patterns, may not account for sudden changes
 - Model accuracy varies by neighbourhood type
 - Explanations show correlation, not causation
 

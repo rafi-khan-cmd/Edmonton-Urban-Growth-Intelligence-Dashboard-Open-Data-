@@ -1262,3 +1262,266 @@ header h1 {
 .leaflet-popup-tip {
     background: var(--bg-card) !important;
 }
+
+/* Top-K Helper Text */
+.top-k-helper-text {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    font-style: italic;
+    line-height: 1.5;
+}
+
+/* Comparison Panel */
+.comparison-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-xl);
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    z-index: 2000;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+}
+
+.comparison-tray {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+
+.comparison-content {
+    margin-bottom: 24px;
+}
+
+.comparison-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.comparison-table th,
+.comparison-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+}
+
+.comparison-table th {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.comparison-table td {
+    color: var(--text-primary);
+}
+
+#comparisonChartCanvas {
+    margin-top: 24px;
+    max-height: 300px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+/* Modal */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    padding: 32px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-xl);
+    max-width: 700px;
+    width: 100%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    position: relative;
+}
+
+.model-card-details {
+    margin-top: 20px;
+}
+
+.detail-section {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.detail-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.detail-section h3 {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: var(--primary-light);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-section p {
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+.detail-section ul {
+    margin-left: 20px;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    line-height: 1.8;
+}
+
+.detail-section li {
+    margin-bottom: 6px;
+}
+
+/* Download Section */
+.download-section {
+    margin-top: 32px;
+    padding: 24px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+}
+
+.download-section h3 {
+    margin-bottom: 16px;
+    color: var(--text-primary);
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.download-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.download-link {
+    padding: 10px 16px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.85em;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: inline-block;
+}
+
+.download-link:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Button Secondary */
+.btn-secondary {
+    padding: 10px 20px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: var(--bg-secondary);
+    border-color: var(--primary);
+}
+
+/* Error Over/Under */
+.error-item.error-over {
+    border-left-color: var(--warning);
+}
+
+.error-item.error-under {
+    border-left-color: var(--primary);
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9em;
+    line-height: 1.6;
+}
+
+/* Why Section */
+.why-section {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+
+/* Caution Note */
+.caution-note {
+    margin-top: 15px;
+    padding: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border-left: 3px solid var(--error);
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .comparison-panel,
+    .modal-content {
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .download-links {
+        flex-direction: column;
+    }
+    
+    .download-link {
+        width: 100%;
+        text-align: center;
+    }
+}

@@ -3,7 +3,7 @@
 ## README Summary
 
 **Project**: Edmonton Urban Growth Intelligence Dashboard  
-**Goal**: Forecast neighbourhood-level commercial growth (new business licences in year t+1) using features from year t  
+**Goal**: Forecast new business licences issued (number of new business licences issued in year t+1) using features from year t. This serves as a proxy for neighbourhood-level commercial growth.  
 **Deployment**: Static website on GitHub Pages, automated via GitHub Actions  
 **Data Source**: City of Edmonton Open Data (Socrata APIs or CSV snapshots)
 
@@ -12,9 +12,9 @@
 ## Model Metrics
 
 ### Test Set Metrics (Gradient Boosting Model)
-- **MAE (Mean Absolute Error)**: Average prediction error in number of business licences
-- **RMSE (Root Mean Square Error)**: Penalizes larger errors more heavily
-- **Top-K Overlap**: Percentage of neighbourhoods correctly identified in top 20 (true vs predicted)
+- **MAE (Mean Absolute Error)**: Average absolute forecast error in number of business licences issued
+- **RMSE (Root Mean Square Error)**: Penalizes larger forecast misses more heavily
+- **Top-K Overlap**: Percentage of neighbourhoods correctly identified in top 20 (true vs predicted). Shows ability to identify the highest-growth neighbourhoods.
 - **Worst Errors**: Top 10 neighbourhoods with largest prediction errors (name, year, y_true, y_pred, error)
 
 ### Baseline Model Metrics
@@ -135,9 +135,10 @@ model:
 
 ## Target Variable
 
-**y**: Number of NEW business licences in year (t+1) for each neighbourhood  
+**y**: Number of new business licences issued in year (t+1) for each neighbourhood  
 **Created from**: `new_businesses` column shifted forward by 1 year  
-**No data leakage**: Only uses features from year t to predict t+1
+**No data leakage**: Only uses features from year t to predict t+1  
+**Note**: This serves as a proxy for commercial growth. The dashboard forecasts new business licences issued, not revenue or business success.
 
 ---
 

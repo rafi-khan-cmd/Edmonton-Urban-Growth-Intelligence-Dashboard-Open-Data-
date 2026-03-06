@@ -4,7 +4,7 @@ An end-to-end project that uses City of Edmonton open datasets to forecast neigh
 
 ## Project Summary
 
-This dashboard predicts **next-year commercial growth** (number of new business licences in year t+1) for each Edmonton neighbourhood using features from year t. The model uses:
+This dashboard forecasts **new business licences issued** (number of new business licences issued in year t+1) for each Edmonton neighbourhood using features from year t. This serves as a proxy for neighbourhood-level commercial growth. The model uses:
 
 - Business activity signals (licences issued, active businesses)
 - Development indicators (permits, construction value)
@@ -15,9 +15,9 @@ All processing happens offline in the pipeline. The deployed site is static (no 
 
 ## Growth Definition
 
-**Growth** = Number of NEW business licences in a neighbourhood in year (t+1), predicted using features from year t.
+**Target**: Number of new business licences issued in a neighbourhood in year (t+1), predicted using features from year t.
 
-This is a **proxy measure**. Actual commercial growth depends on many factors not captured in open data.
+This dashboard forecasts new business licences issued, which serve as a proxy for neighbourhood-level commercial growth. This is a **proxy measure**—actual commercial growth depends on many factors not captured in open data.
 
 ## Data Requirements
 
@@ -46,7 +46,7 @@ Place the following CSV/GeoJSON files in `data/raw/`:
 
 2. **Business licences** (`business_licences.csv`)
    - Must have: issue_date, latitude, longitude
-   - Optional: status (for active business counts)
+   - Optional: status or licencetype (for active business counts)
 
 3. **Zoning data** (`Zoning_Bylaw_Geographical_Data_20260301.csv`)
    - Must have: geometry_multipolygon (WKT), zoning_code, description
@@ -167,6 +167,23 @@ The `.github/workflows/build_and_deploy.yml` workflow:
 **D) Vibrancy** (optional)
 - `avg_ped_bike_count_t`: Average pedestrian/bicycle counts
 - `ped_bike_growth_rate_t`: Year-over-year growth
+
+**E) Derived/Emergence Features**
+- `emergence_score`: Growth acceleration (second derivative)
+- `build_pressure_score`: Development activity indicator
+- `commercial_gap_score`: Predicted growth - existing density
+
+### Feature Group Contributions
+
+The model's feature importance (available in `model_card.json`) shows which types of signals matter most for predicting new business licences issued. Based on the current trained model:
+
+- **Business Activity** features typically show strong importance, as past licence issuance patterns are strong predictors
+- **Development Signals** (permits, construction value) indicate planned commercial activity
+- **Zoning Capacity** provides structural constraints and opportunities
+- **Vibrancy** metrics (if available) capture pedestrian activity and neighbourhood vitality
+- **Derived/Emergence** features capture growth acceleration and development pressure
+
+The top 5 features by importance are displayed in the dashboard's Model Card and info panels. This analysis is based on the current trained model's feature importance, not a separate ablation experiment.
 
 ### Model
 

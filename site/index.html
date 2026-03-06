@@ -20,6 +20,7 @@
                     <span class="subtitle-text">Predictive Analytics Dashboard</span>
                 </div>
                 <div class="header-right">
+                    <button id="viewTechnicalDetails" class="btn-secondary">View Technical Details</button>
                     <div class="status-indicator">
                         <span class="status-dot"></span>
                         <span class="status-text">Live</span>
@@ -102,15 +103,15 @@
                 <label for="viewMode">View:</label>
                 <select id="viewMode">
                     <option value="score">Growth Score</option>
-                    <option value="predicted">Predicted Count</option>
-                    <option value="actual">Actual Count</option>
+                    <option value="predicted">Predicted Licences Issued</option>
+                    <option value="actual">Actual Licences Issued</option>
                 </select>
             </div>
             <div class="control-group">
                 <label for="zoningFilter">Min Future Dev %:</label>
                 <input type="number" id="zoningFilter" min="0" max="100" value="0" step="5">
             </div>
-            <button id="refreshBtn">Refresh</button>
+            <button id="refreshBtn">Refresh Data</button>
         </div>
 
         <!-- Scenario Mode Toggle -->
@@ -131,8 +132,8 @@
             </div>
             <div id="scenarioSliders" class="scenario-sliders hidden">
                 <div class="scenario-disclaimer">
-                    <strong>⚠️ Disclaimer:</strong> Scenario mode uses an approximate adjustment heuristic, not a full model re-run. 
-                    Results are indicative and should not be treated as precise predictions.
+                    <strong>⚠️ Important:</strong> Scenario mode uses an approximate heuristic adjustment and does not re-run the trained model. 
+                    It is best used for directional exploration rather than exact forecast changes. Results are indicative and should not be treated as precise predictions.
                 </div>
                 <div class="slider-group">
                     <label>Development Permits: <span id="permitsAdj">0%</span></label>
@@ -160,9 +161,10 @@
                     <h2>Top Rankings</h2>
                     <div class="top-k-tabs">
                         <button class="tab-btn active" data-tab="emerging">Emerging</button>
-                        <button class="tab-btn" data-tab="absolute">High Growth</button>
+                        <button class="tab-btn" data-tab="absolute">Highest Growth</button>
                         <button class="tab-btn" data-tab="underserved">Under-served</button>
                     </div>
+                    <div id="topKHelperText" class="top-k-helper-text"></div>
                     <div id="topKContent" class="top-k-content"></div>
                 </div>
 
@@ -187,26 +189,35 @@
                         emergence scores, and year-over-year changes rather than absolute counts.</p>
                     </div>
                     <div class="help-item">
-                        <strong>Predicted Count:</strong>
-                        <p>The actual number of new business licences predicted for the next year (t+1) 
-                        based on features from the current year (t).</p>
+                        <strong>Predicted Licences Issued:</strong>
+                        <p>The actual number of new business licences issued predicted for the next year (t+1) 
+                        based on features from the current year (t). This serves as a proxy for commercial growth.</p>
                     </div>
                     <div class="help-item">
                     <strong>Scenario Mode (What-if Heuristic):</strong>
                     <p>Run "what-if" analyses by adjusting key indicators. See how hypothetical changes 
                     to permits, construction value, or zoning would affect growth predictions and rankings.
-                    <strong>Note:</strong> Scenario mode uses an approximate adjustment heuristic, not a full model re-run.</p>
+                    <strong>Note:</strong> Scenario mode uses an approximate adjustment heuristic and does not re-run the trained model. 
+                    It is best used for directional exploration rather than exact forecast changes.</p>
+                    </div>
+                </div>
+
+                <!-- Top Features Section -->
+                <div class="top-features-section" id="topFeaturesSection" style="margin-top: 32px; padding-top: 24px; border-top: 2px solid var(--border);">
+                    <h2>Top Features</h2>
+                    <div id="topFeaturesContent" style="padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+                        <p style="font-size: 0.85em; color: var(--text-muted);">Loading feature importance...</p>
                     </div>
                 </div>
 
                 <!-- Methodology -->
                 <div class="methodology">
                     <h3>Methodology</h3>
-                    <p><strong>Growth Definition:</strong> Predicted number of new business licences in year (t+1) based on features from year t.</p>
-                    <p><strong>Features:</strong> Business activity, development permits, building permits, zoning capacity, and vibrancy indicators.</p>
-                    <p><strong>Model:</strong> Gradient Boosting (LightGBM) with time-based train/test split.</p>
-                    <p><strong>Validation:</strong> Trained on earlier years, tested on most recent 1-2 years.</p>
-                    <p class="disclaimer"><strong>Disclaimer:</strong> Explanations indicate correlation, not causation. This is a proxy measure.</p>
+                    <p><strong>What is being forecast:</strong> This dashboard forecasts new business licences issued, which serve as a proxy for neighbourhood-level commercial growth. The model predicts the number of new business licences issued in year (t+1) based on features from year t.</p>
+                    <p><strong>Data sources:</strong> Business activity signals (licences issued, active businesses), development indicators (permits, construction value), zoning capacity (area-weighted zoning shares), and vibrancy metrics (pedestrian/bicycle counts, if available). All data comes from City of Edmonton Open Data.</p>
+                    <p><strong>Model approach:</strong> Gradient Boosting (LightGBM) with time-based train/test split. Trained on earlier years, tested on most recent 1-2 years to ensure no future data leakage.</p>
+                    <p><strong>Interpretation:</strong> Results should be used for exploratory planning and screening. Predictions are probabilistic, not guarantees. Explanations indicate correlation, not causation.</p>
+                    <p class="disclaimer"><strong>Limitations:</strong> Forecasts new business licences issued, not revenue or business success. Uses open-data proxies and historical patterns. Zoning treated as static. Scenario mode is approximate. Intended for exploratory planning and screening, not causal claims or guaranteed outcomes.</p>
                 </div>
             </div>
             
@@ -229,9 +240,39 @@
             <h2 id="panelTitle"></h2>
             <div id="panelContent"></div>
             <div class="panel-actions">
-                <button id="compareBtn" class="btn-primary">Compare</button>
+                <button id="compareBtn" class="btn-primary">Add to Compare</button>
             </div>
             <canvas id="chartCanvas"></canvas>
+        </div>
+
+        <!-- Comparison Panel -->
+        <div id="comparisonPanel" class="comparison-panel hidden">
+            <button id="closeComparison" class="close-btn">×</button>
+            <h2>Neighbourhood Comparison</h2>
+            <div id="comparisonTray" class="comparison-tray"></div>
+            <div id="comparisonContent" class="comparison-content"></div>
+            <canvas id="comparisonChartCanvas"></canvas>
+        </div>
+
+        <!-- Model Card Details Modal -->
+        <div id="modelCardModal" class="modal hidden">
+            <div class="modal-content">
+                <button id="closeModal" class="close-btn">×</button>
+                <h2>Technical Details</h2>
+                <div id="modelCardDetails" class="model-card-details"></div>
+            </div>
+        </div>
+
+        <!-- Download Section -->
+        <div class="download-section">
+            <h3>Download Data & Metadata</h3>
+            <div class="download-links">
+                <a href="./assets/predictions.geojson" download class="download-link">predictions.geojson</a>
+                <a href="./assets/timeseries.csv" download class="download-link">timeseries.csv</a>
+                <a href="./assets/model_card.json" download class="download-link">model_card.json</a>
+                <a href="./assets/data_dictionary.json" download class="download-link">data_dictionary.json</a>
+                <a href="./assets/build_report.json" download class="download-link">build_report.json</a>
+            </div>
         </div>
     </div>
     
