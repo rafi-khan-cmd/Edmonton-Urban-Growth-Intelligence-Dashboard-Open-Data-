@@ -1291,6 +1291,10 @@ header h1 {
     backdrop-filter: blur(20px);
 }
 
+.comparison-panel.hidden {
+    display: none !important;
+}
+
 .comparison-tray {
     margin-bottom: 24px;
     padding: 16px;

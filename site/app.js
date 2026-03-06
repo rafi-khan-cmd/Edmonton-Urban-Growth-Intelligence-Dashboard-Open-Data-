@@ -968,9 +968,12 @@ function updateComparisonTray() {
     if (clearBtn) {
         clearBtn.addEventListener('click', () => {
             compareSelection = [];
-            updateComparisonTray();
             const panel = document.getElementById('comparisonPanel');
-            if (panel) panel.classList.add('hidden');
+            if (panel) {
+                panel.classList.add('hidden');
+                panel.style.display = 'none';
+            }
+            updateComparisonTray();
         });
     }
 }
@@ -1179,9 +1182,16 @@ function setupEventListeners() {
     // Comparison panel close
     const closeComparison = document.getElementById('closeComparison');
     if (closeComparison) {
-        closeComparison.addEventListener('click', () => {
+        closeComparison.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const panel = document.getElementById('comparisonPanel');
-            if (panel) panel.classList.add('hidden');
+            if (panel) {
+                panel.classList.add('hidden');
+                // Also clear comparison selection
+                compareSelection = [];
+                updateComparisonTray();
+            }
         });
     }
 
@@ -1453,29 +1463,32 @@ function showModelCardDetails() {
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
+        // Ensure comparison panel is hidden FIRST before anything else
+        const panel = document.getElementById('comparisonPanel');
+        if (panel) {
+            panel.classList.add('hidden');
+            panel.style.display = 'none';
+        }
+        
         setupEventListeners();
         initMap();
         loadModelCard();
         loadData();
-        // Ensure comparison panel is hidden on load
-        const panel = document.getElementById('comparisonPanel');
-        if (panel) {
-            panel.classList.add('hidden');
-        }
         // Initialize empty comparison tray
         updateComparisonTray();
     });
 } else {
-    // DOM already loaded
+    // DOM already loaded - hide panel immediately
+    const panel = document.getElementById('comparisonPanel');
+    if (panel) {
+        panel.classList.add('hidden');
+        panel.style.display = 'none';
+    }
+    
     setupEventListeners();
     initMap();
     loadModelCard();
     loadData();
-    // Ensure comparison panel is hidden on load
-    const panel = document.getElementById('comparisonPanel');
-    if (panel) {
-        panel.classList.add('hidden');
-    }
     // Initialize empty comparison tray
     updateComparisonTray();
 }
