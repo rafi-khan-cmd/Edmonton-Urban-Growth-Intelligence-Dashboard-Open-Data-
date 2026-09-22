@@ -109,14 +109,15 @@ model:
 1. Find maximum year in dataset
 2. Calculate `test_year_threshold = max_year - test_years + 1`
 3. **Train Set**: All years < `test_year_threshold`
-4. **Test Set**: All years >= `test_year_threshold`
+4. **Test Set**: All years >= `test_year_threshold` (untouched until final evaluation)
+5. **Validation Set**: The most recent year of the train set is held out for LightGBM early stopping. Boosting rounds are chosen on that year, then the model is refit on the full train set with the chosen round count. The test set is never used to pick hyperparameters.
 
 ### Example
 - If data spans 2015-2024 and `test_years = 2`:
-  - **Train**: 2015-2022 (8 years)
+  - **Fit**: 2015-2021
+  - **Validation** (early stopping): 2022
+  - **Refit**: 2015-2022 with the chosen round count
   - **Test**: 2023-2024 (2 years)
-  - **Train Samples**: ~407 neighbourhoods × 8 years = ~3,256 samples
-  - **Test Samples**: ~407 neighbourhoods × 2 years = ~814 samples
 
 ### Model Training
 - **Algorithm**: LightGBM (Gradient Boosting)

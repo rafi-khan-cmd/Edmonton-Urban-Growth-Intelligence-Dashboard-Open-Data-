@@ -104,7 +104,7 @@ Total: ~14 features (13 if ped/bike data unavailable)
 
 - Algorithm: Gradient Boosting (LightGBM)
 - Baseline: Simple lag model (predicts using `new_businesses_t`)
-- Validation: Time-based split (train on earlier years, test on most recent 1-2 years)
+- Validation: Time-based split. The last 1–2 years are held out as an untouched test set. Early stopping uses the most recent year of the remaining training data, not the test set.
 - Metrics: MAE, RMSE, Top-K ranking overlap
 
 ### Growth Score

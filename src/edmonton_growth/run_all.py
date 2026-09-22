@@ -115,4 +115,9 @@ def run_pipeline(fetch_from_api=False):
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run the Edmonton growth pipeline")
+    parser.add_argument("--fetch-from-api", action="store_true",
+                        help="Fetch datasets from the City of Edmonton APIs before training")
+    args = parser.parse_args()
+    run_pipeline(fetch_from_api=args.fetch_from_api)
