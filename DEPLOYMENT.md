@@ -4,19 +4,11 @@
 
 The dashboard is automatically deployed to **GitHub Pages** when you push to the `main` branch or on a weekly schedule (Sundays at 6:00 UTC).
 
-### Access Your Dashboard
+### Access the dashboard
 
-Once deployed, your dashboard will be available at:
+Once deployed, the dashboard is served from GitHub Pages at:
 
-```
-https://[your-username].github.io/[repository-name]/
-```
-
-For example, if your repository is:
-- `https://github.com/rafiulalamkhan/Edmonton-Urban-Growth-Intelligence-Dashboard-Open-Data-`
-
-Then your dashboard will be at:
-- `https://rafiulalamkhan.github.io/Edmonton-Urban-Growth-Intelligence-Dashboard-Open-Data-/`
+- https://rafi-khan-cmd.github.io/Edmonton-Urban-Growth-Intelligence-Dashboard-Open-Data-/
 
 ### Enable GitHub Pages
 

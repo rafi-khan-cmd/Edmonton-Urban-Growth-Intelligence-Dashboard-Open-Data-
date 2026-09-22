@@ -139,7 +139,7 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
     if format_type == "csv" and all_data:
         df = pd.concat(all_data, ignore_index=True)
         df.to_csv(output_path, index=False)
-        logger.info(f"✅ Saved {len(df)} total records to {output_path}")
+        logger.info(f"Saved {len(df)} total records to {output_path}")
         return True
     elif format_type == "geojson" and all_data:
         # Combine GeoJSON features
@@ -153,7 +153,7 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
         import json
         with open(output_path, 'w') as f:
             json.dump(feature_collection, f)
-        logger.info(f"✅ Saved {len(all_features)} total features to {output_path}")
+        logger.info(f"Saved {len(all_features)} total features to {output_path}")
         return True
     elif all_data:
         # For JSON, combine into DataFrame
@@ -164,7 +164,7 @@ def fetch_with_pagination(resource_id, output_path, api_version="soda2", base_ur
         else:
             df = pd.DataFrame(all_data)
             df.to_csv(output_path, index=False)
-            logger.info(f"✅ Saved {len(df)} total records to {output_path}")
+            logger.info(f"Saved {len(df)} total records to {output_path}")
             return True
     
     logger.warning("No data fetched")
@@ -292,7 +292,7 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
                 try:
                     gdf = gpd.read_file(output_path)
                     fetched_count = len(gdf)
-                    logger.info(f"✅ Successfully parsed GeoJSON with {fetched_count} records")
+                    logger.info(f"Successfully parsed GeoJSON with {fetched_count} records")
                 except Exception as geojson_error:
                     logger.error(f"Failed to parse GeoJSON with geopandas: {geojson_error}")
                     import traceback
@@ -464,13 +464,13 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
         return True
         
     except requests.exceptions.Timeout as e:
-        logger.error(f"⏱️ TIMEOUT fetching {resource_id}")
+        logger.error(f"⏱TIMEOUT fetching {resource_id}")
         logger.error(f"URL was: {url}")
         logger.error(f"Params were: {params}")
         logger.error(f"This dataset may be too large. Try reducing limit or using CSV format.")
         return False
     except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Error fetching {resource_id}: {e}")
+        logger.error(f"Error fetching {resource_id}: {e}")
         logger.error(f"URL was: {url}")
         logger.error(f"Params were: {params}")
         if hasattr(e, 'response') and e.response is not None:
@@ -478,7 +478,7 @@ def fetch_socrata_data(resource_id, output_path, api_version="soda2", base_url="
             logger.error(f"Response text: {e.response.text[:500]}")
         return False
     except Exception as e:
-        logger.error(f"❌ Error processing {resource_id}: {e}")
+        logger.error(f"Error processing {resource_id}: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
@@ -548,20 +548,20 @@ def fetch_all_datasets():
                 use_pagination=use_pagination
             )
             if csv_success:
-                logger.info(f"✅ CSV fallback succeeded for {dataset_name}")
+                logger.info(f"CSV fallback succeeded for {dataset_name}")
                 success = True
                 # Update the config to use CSV
                 datasets_config[dataset_name]["file"] = csv_output.name
         
         results[dataset_name] = success
         if not success:
-            logger.error(f"❌ Failed to fetch {dataset_name} from API")
+            logger.error(f"Failed to fetch {dataset_name} from API")
             logger.error(f"   Resource ID: {resource_id}")
             logger.error(f"   Format: {format_type}")
             logger.error(f"   Limit: {limit}")
             logger.error(f"   Use pagination: {use_pagination}")
         else:
-            logger.info(f"✅ Successfully fetched {dataset_name}")
+            logger.info(f"Successfully fetched {dataset_name}")
     
     # Check if we got at least the required files
     required_files = ["neighbourhoods", "business_licences", "zoning"]
@@ -578,7 +578,7 @@ def fetch_all_datasets():
         logger.error("=" * 60)
         raise RuntimeError(f"Failed to fetch required datasets. Only {success_count}/{len(required_files)} succeeded.")
     
-    logger.info(f"✅ Successfully fetched {success_count} required datasets")
+    logger.info(f"Successfully fetched {success_count} required datasets")
     logger.info("=" * 60)
     return results
 
@@ -592,10 +592,10 @@ if __name__ == "__main__":
     )
     try:
         fetch_all_datasets()
-        logger.info("✅ All datasets fetched successfully!")
+        logger.info("All datasets fetched successfully!")
         sys.exit(0)
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         import traceback
         logger.error(traceback.format_exc())
         sys.exit(1)

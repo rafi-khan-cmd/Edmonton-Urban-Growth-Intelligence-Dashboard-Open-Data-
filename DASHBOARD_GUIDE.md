@@ -1,6 +1,6 @@
 # Edmonton Urban Growth Intelligence Dashboard - Interpretation Guide
 
-## 📊 Model Card Metrics (Top Panel)
+## Model Card Metrics (Top Panel)
 
 ### **MAE (Mean Absolute Error)**
 - **What it means**: Average prediction error in number of business licences
@@ -28,7 +28,7 @@
 
 ---
 
-## 🗺️ Map Visualization
+## Map Visualization
 
 ### **Growth Score (0-100)**
 - **What it means**: Normalized score showing **growth acceleration/uptick** compared to previous years
@@ -59,7 +59,7 @@
 
 ---
 
-## 📈 Top Rankings Lists
+## Top Rankings Lists
 
 ### **Emerging Neighbourhoods**
 - **What it means**: Fast-rising areas based on acceleration and recent growth momentum
@@ -78,7 +78,7 @@
 
 ---
 
-## 🎛️ Scenario Mode
+## Scenario Mode
 
 ### **What it does**: Simulates "what-if" scenarios by adjusting key indicators
 
@@ -109,7 +109,7 @@
 
 ---
 
-## 🔍 Neighbourhood Info Panel (Click on Map)
+## Neighbourhood Info Panel (Click on Map)
 
 When you click a neighbourhood, you see:
 
@@ -137,7 +137,7 @@ When you click a neighbourhood, you see:
 
 ---
 
-## 📊 Evaluation Section
+## Evaluation Section
 
 ### **Validation Tab**
 - **Time Split**: Shows train/test years and sample counts
@@ -150,7 +150,7 @@ When you click a neighbourhood, you see:
 
 ---
 
-## 🎯 Key Concepts
+## Key Concepts
 
 ### **Growth Definition**
 - **Target**: Number of new business licences issued in year (t+1)
@@ -174,7 +174,7 @@ When you click a neighbourhood, you see:
 
 ---
 
-## 💡 Quick Tips
+## Quick Tips
 
 1. **Start with Growth Score view** to see relative rankings
 2. **Switch to Predicted Count** to see actual numbers
@@ -185,7 +185,7 @@ When you click a neighbourhood, you see:
 
 ---
 
-## 📚 Data Sources
+## Data Sources
 
 All data comes from **City of Edmonton Open Data**:
 - Business Licences

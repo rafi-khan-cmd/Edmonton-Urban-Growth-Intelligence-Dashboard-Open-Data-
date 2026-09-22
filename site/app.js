@@ -802,7 +802,7 @@ function showInfoPanel(props) {
     if (scenarioAdjustments.permits !== 0 || scenarioAdjustments.construction !== 0 || scenarioAdjustments.zoning !== 0) {
         html += `
             <div class="scenario-disclaimer" style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 3px solid #ffc107; font-size: 0.85em;">
-                <strong>⚠️ Scenario Mode Active:</strong> Values shown are approximate adjustments, not full model re-runs. Best used for directional exploration.
+                <strong>Scenario Mode Active:</strong> Values shown are approximate adjustments, not full model re-runs. Best used for directional exploration.
             </div>
         `;
     }
